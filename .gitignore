@@ -3,4 +3,6 @@ __pycache__
 rollouts
 *.gb
 *.ram
+.ipynb_checkpoints
 raw_documentation
+*.pem

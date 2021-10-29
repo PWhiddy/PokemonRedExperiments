@@ -1,5 +1,5 @@
 import argparse
-from multiprocessing import Pool
+from multiprocessing import Process
 
 from red_game import RedEnv
 from random_agent import RandomAgent
@@ -26,6 +26,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run game options')
     parser.add_argument('-p', dest='procs', type=int, default=1, help='Number of games to run in parallel')
     args = parser.parse_args()
-    with Pool(5) as p:
-        print(f'Requesting {args.procs} emulator{"s in parallel. (Actual number will depend on system)" if args.procs > 1 else ""}')
-        p.map(run_random_sims, range(args.procs))
+    print(f'Running {args.procs} emulator{"s in parallel" if args.procs > 1 else ""}')
+    processes = [Process(target=run_random_sims, args=(i,)) for i in range(args.procs)]
+    for p in processes:
+        p.daemon = True
+        p.start()
+    for p in processes:
+        p.join()
