@@ -1,5 +1,5 @@
 import sys
-import time 
+import uuid 
 
 import numpy as np
 from PIL.Image import init
@@ -20,6 +20,8 @@ class RedEnv:
         self.act_freq = action_freq
         self.downsample_factor = 8
         self.similar_frame_dist = 1500000.0
+        self.episode_count = 1
+        self.instance_id = str(uuid.uuid4())[:8]
 
         head = 'headless' if headless else 'SDL2'
 
@@ -50,8 +52,7 @@ class RedEnv:
         # Initing index - the maximum number of elements should be known beforehand
         self.knn_index.init_index(max_elements=self.num_elements, ef_construction=100, M=16)
 
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        rollout = Rollout(timestr, agent.get_name())
+        rollout = Rollout(f'{self.instance_id}_r{self.episode_count}', agent.get_name())
 
         while not self.pyboy.tick() and frame < max_episode_steps:
 
@@ -80,16 +81,16 @@ class RedEnv:
                 if (distances[0] > self.similar_frame_dist):
                     self.knn_index.add_items(state, np.array([self.knn_index.get_current_count()]))
 
-                rollout.set_reward(self.knn_index.get_current_count())
+                rollout.add_reward(self.knn_index.get_current_count())
 
                 if self.debug:
                     print(frame)
                     print(f'{self.knn_index.get_current_count()} total frames indexed, current closest is: {distances[0]}')
 
-
             frame += 1
 
         rollout.save_to_file()
+        self.episode_count += 1
 
         return self.knn_index.get_current_count()
 

@@ -25,5 +25,5 @@ class RandomAgent:
             WindowEvent.PRESS_BUTTON_B,
             WindowEvent.RELEASE_BUTTON_A,
             WindowEvent.RELEASE_BUTTON_B,
-            None
+            WindowEvent.PASS
         ])

@@ -10,12 +10,12 @@ class Rollout:
         self.path = Path(basepath) / Path(name)
         self.actions = []
         self.frames = []
+        self.rewards = []
         self.agent_name = agent_name
-        self.final_reward = 0
         Path(basepath).mkdir(exist_ok=True)
 
-    def set_reward(self, reward):
-        self.final_reward = reward
+    def add_reward(self, reward):
+        self.rewards.append(reward)
 
     def add_state_action_pair(self, frame, action):
         self.frames.append(frame)
@@ -33,7 +33,7 @@ class Rollout:
         media.write_video(self.path.with_suffix('.mp4'), out_frames, fps=30)
         # save actions and metadata as json
         with self.path.with_suffix('.json').open('w') as f:
-            json.dump({'actions': self.actions, 'reward': self.final_reward, 'agent': self.agent_name}, f)
+            json.dump({'actions': self.actions, 'rewards': self.rewards, 'agent': self.agent_name}, f)
 
     ### TODO make these instances load from files for training data!
     

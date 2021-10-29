@@ -1,8 +1,13 @@
+import argparse
+from multiprocessing import Pool
+
 from red_game import RedEnv
 from random_agent import RandomAgent
 
-if __name__ == '__main__':
+def run_random_sims(pid):
     sim = RedEnv(headless=True)
+    em_id = sim.instance_id
+    print(f'Initialized emulator {em_id}')
     rand_agent = RandomAgent()
 
     count = 0
@@ -15,4 +20,12 @@ if __name__ == '__main__':
         total_reward += reward
         min_reward = min(min_reward, reward)
         max_reward = max(max_reward, reward)
-        print(f'round {count}, reward: {reward}, min: {min_reward}, max: {max_reward}, average: {total_reward/count}')
+        print(f'{em_id} round {count}, reward: {reward}, min: {min_reward}, max: {max_reward}, average: {total_reward/count}')
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Run game options')
+    parser.add_argument('-p', dest='procs', type=int, default=1, help='Number of games to run in parallel')
+    args = parser.parse_args()
+    with Pool(5) as p:
+        print(f'Requesting {args.procs} emulator{"s in parallel. (Actual number will depend on system)" if args.procs > 1 else ""}')
+        p.map(run_random_sims, range(args.procs))
