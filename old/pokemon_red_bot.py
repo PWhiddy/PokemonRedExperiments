@@ -1,5 +1,5 @@
 import sys
-from pyboy import PyBoy, windowevent
+from pyboy import PyBoy, WindowEvent
 import torch
 import torchvision
 import hnswlib
@@ -30,6 +30,11 @@ pyboy = PyBoy(
         window_type='SDL2',
         hide_window="--quiet" in sys.argv,
     )
+
+
+with open("init.state", "rb") as f:
+    pyboy.load_state(f)
+
 pyboy.set_emulation_speed(0)
 
 preprocess = torchvision.transforms.Compose([
@@ -48,20 +53,20 @@ while not pyboy.tick():
     '''
     if frame%200 == 0:
         print('pressing start...')
-        pyboy.send_input(windowevent.PRESS_BUTTON_START)
+        pyboy.send_input(WindowEvent.PRESS_BUTTON_START)
     else:
-        pyboy.send_input(windowevent.RELEASE_BUTTON_START)
+        pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
 
     if frame%5 == 0:
         print('pressing A...')
-        pyboy.send_input(windowevent.PRESS_BUTTON_A)
+        pyboy.send_input(WindowEvent.PRESS_BUTTON_A)
     else:
-        pyboy.send_input(windowevent.RELEASE_BUTTON_A)
+        pyboy.send_input(WindowEvent.RELEASE_BUTTON_A)
     '''
 
     if frame % 5 == 0:
         #print(pyboy.get_raw_screen_buffer())
-        pix = torch.from_numpy(pyboy.get_screen_ndarray())
+        pix = torch.from_numpy(np.array(pyboy.screen_image()))
         pix = pix.permute(2,0,1)#.unsqueeze(0)
         pix = pix.float()
 

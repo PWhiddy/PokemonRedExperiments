@@ -1,0 +1,6 @@
+opencv-python
+torch
+hnswlib
+numpy
+pyboy
+mediapy
