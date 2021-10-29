@@ -1,5 +1,3 @@
-
-from typing_extensions import Required
 from red_game import RedEnv
 from random_agent import RandomAgent
 
