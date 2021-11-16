@@ -1,5 +1,6 @@
 opencv-python
 torch
+einops
 hnswlib
 numpy
 pyboy

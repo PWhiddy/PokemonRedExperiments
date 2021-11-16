@@ -63,8 +63,7 @@ class RedEnv:
                 state_np = np.array(game_pixels_render)
 
                 next_action = agent.get_action(state_np, rollout)
-                if next_action is not None:
-                    self.pyboy.send_input(next_action)
+                self.pyboy.send_input(next_action)
 
                 rollout.add_state_action_pair(state_np, next_action)
 

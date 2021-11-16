@@ -35,5 +35,17 @@ class Rollout:
         with self.path.with_suffix('.json').open('w') as f:
             json.dump({'actions': self.actions, 'rewards': self.rewards, 'agent': self.agent_name}, f)
 
-    ### TODO make these instances load from files for training data!
+    @classmethod
+    def from_saved_path(cls, path, basepath):
+        with path.open('r') as f:
+            data = json.load(f)
+        new_instance = cls(path.stem, data['agent'], basepath=basepath)
+        new_instance.actions = data['actions']
+        new_instance.rewards = data['rewards']
+        new_instance.frames = media.read_video(path.with_suffix('.mp4'))
+        return new_instance
     
+def load_rollouts(dir_path):
+    for p in Path(dir_path).glob('*'):
+        if p.suffix == '.json':
+            yield Rollout.from_saved_path(p, dir_path)
