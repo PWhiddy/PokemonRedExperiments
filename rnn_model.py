@@ -32,6 +32,6 @@ class RNNModel(nn.Module):
         action_logits = self.action_head(lstm_out)
         #print(f'action_logits: {action_logits.shape}')
         #print(f'lstm_out: {lstm_out.shape} hidden_state: {hidden_state.shape} hidden_cell: {hidden_cell.shape}')
-        loss = F.cross_entropy(rearrange(action_logits, 'b s e -> (b s) e'), rearrange(last_actions, 'b s -> (b s)'))
+        loss = F.cross_entropy(rearrange(action_logits, 'b s e -> (b s) e'), rearrange(actions, 'b s -> (b s)'))
         #print(f'loss: {loss}')
         return action_logits, loss
