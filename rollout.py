@@ -1,7 +1,8 @@
 from pathlib import Path
+import json
+from itertools import islice
 import numpy as np
 import mediapy as media
-import json
 
 class Rollout:
 
@@ -32,17 +33,26 @@ class Rollout:
         out_frames = np.array(self.frames)
         media.write_video(self.path.with_suffix('.mp4'), out_frames, fps=30)
         # save actions and metadata as json
-        with self.path.with_suffix('.json').open('w') as f:
-            json.dump({'actions': self.actions, 'rewards': self.rewards, 'agent': self.agent_name}, f)
+        with self.path.with_suffix('.json').open('w') as file:
+            json.dump({
+                'actions': self.actions, 
+                'rewards': self.rewards, 
+                'agent': self.agent_name}, 
+                file
+            )
 
     @classmethod
-    def from_saved_path(cls, path, basepath):
+    def from_saved_path(cls, path, basepath, limit=None):
         with path.open('r') as f:
             data = json.load(f)
         new_instance = cls(path.stem, data['agent'], basepath=basepath)
         new_instance.actions = data['actions']
         new_instance.rewards = data['rewards']
-        new_instance.frames = media.read_video(path.with_suffix('.mp4'))
+        if limit is not None:
+            new_instance.actions = new_instance.actions[:limit]
+            new_instance.rewards = new_instance.rewards[:limit]
+        with media.VideoReader(path.with_suffix('.mp4')) as reader:
+            new_instance.frames = np.array(tuple(islice(reader, limit)))
         return new_instance
     
 def load_rollouts(dir_path):

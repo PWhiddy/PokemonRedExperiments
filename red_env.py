@@ -11,7 +11,10 @@ from rollout import Rollout
 
 class RedEnv:
 
-    def __init__(self, headless=True, action_freq=5, init_state='init.state', debug=False):
+    def __init__(
+        self, headless=True, rollout_dir='rollouts',
+        action_freq=5, init_state='init.state', 
+        gb_path='./PokemonRed.gb', debug=False):
 
         self.debug = debug
         self.vec_dim = 1080 #4320 #1000
@@ -21,16 +24,17 @@ class RedEnv:
         self.downsample_factor = 8
         self.similar_frame_dist = 1500000.0
         self.episode_count = 1
+        self.rollout_dir = rollout_dir
         self.instance_id = str(uuid.uuid4())[:8]
 
         head = 'headless' if headless else 'SDL2'
 
         self.pyboy = PyBoy(
-                "./PokemonRed.gb",
+                gb_path,
                 debugging=False,
                 disable_input=False,
                 window_type=head,
-                hide_window="--quiet" in sys.argv,
+                hide_window='--quiet' in sys.argv,
             )
 
         self.reset_game()
@@ -46,13 +50,18 @@ class RedEnv:
 
         frame = 0
         self.reset_game()
+        agent.reset()
 
         # Declaring index
         self.knn_index = hnswlib.Index(space='l2', dim=self.vec_dim) # possible options are l2, cosine or ip
         # Initing index - the maximum number of elements should be known beforehand
-        self.knn_index.init_index(max_elements=self.num_elements, ef_construction=100, M=16)
+        self.knn_index.init_index(
+            max_elements=self.num_elements, ef_construction=100, M=16)
 
-        rollout = Rollout(f'{self.instance_id}_r{self.episode_count}', agent.get_name())
+        rollout = Rollout(
+            f'{self.instance_id}_r{self.episode_count}',
+            agent.get_name(), basepath=self.rollout_dir
+        )
 
         while not self.pyboy.tick() and frame < max_episode_steps:
 
@@ -72,19 +81,26 @@ class RedEnv:
                     y//self.downsample_factor)
                     )).reshape(-1)
 
-                if (self.knn_index.get_current_count() == 0):
-                    self.knn_index.add_items(state, np.array([self.knn_index.get_current_count()]))
+                if self.knn_index.get_current_count() == 0:
+                    self.knn_index.add_items(
+                        state, np.array([self.knn_index.get_current_count()])
+                    )
 
                 # Query dataset, k - number of closest elements
                 labels, distances = self.knn_index.knn_query(state, k = 1)
-                if (distances[0] > self.similar_frame_dist):
-                    self.knn_index.add_items(state, np.array([self.knn_index.get_current_count()]))
+                if distances[0] > self.similar_frame_dist:
+                    self.knn_index.add_items(
+                        state, np.array([self.knn_index.get_current_count()])
+                    )
 
                 rollout.add_reward(self.knn_index.get_current_count())
 
                 if self.debug:
                     print(frame)
-                    print(f'{self.knn_index.get_current_count()} total frames indexed, current closest is: {distances[0]}')
+                    print(
+                        f'{self.knn_index.get_current_count()} '
+                        f'total frames indexed, current closest is: {distances[0]}'
+                    )
 
             frame += 1
 

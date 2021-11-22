@@ -9,6 +9,9 @@ class RandomAgent:
     def get_name(self):
         return 'random action agent v1'
 
+    def reset_agent(self):
+        pass
+
     def get_action(self, latest_state, rollout):
         # can use state and rollout history to make 
         # decision but agent doesn't care
