@@ -14,16 +14,21 @@ class RedGymEnv(gym.Env):
 
 
     def __init__(
-        self, headless=True, 
-        action_freq=5, init_state='init.state', max_steps=100, 
-        gb_path='./PokemonRed.gb', debug=False):
+        self, config=None):
 
-        self.debug = debug
+        if config is None:
+            self.config = {
+                'headless':True, 
+                'action_freq': 5, 'init_state':'init.state', 'max_steps': 100, 
+                'gb_path': './PokemonRed.gb', 'debug': False
+            }
+
+        self.debug = config['debug']
         self.vec_dim = 4320 #1000
         self.num_elements = 20000 # max
-        self.init_state = init_state
-        self.act_freq = action_freq
-        self.max_steps = max_steps
+        self.init_state = config['init_state']
+        self.act_freq = config['action_freq']
+        self.max_steps = config['max_steps']
         self.downsample_factor = 4
         self.similar_frame_dist = 1500000.0
         self.episode_count = 1
@@ -32,32 +37,38 @@ class RedGymEnv(gym.Env):
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
-        self.reward_range = (0, 100)
+        self.reward_range = (0, 50)
 
         self.valid_actions = [
             WindowEvent.PRESS_ARROW_DOWN,
             WindowEvent.PRESS_ARROW_LEFT,
             WindowEvent.PRESS_ARROW_RIGHT,
             WindowEvent.PRESS_ARROW_UP,
+            WindowEvent.PRESS_BUTTON_A,
+            WindowEvent.PRESS_BUTTON_B,
+            WindowEvent.PASS
+        ]
+
+        self.release_arrow = [            
             WindowEvent.RELEASE_ARROW_DOWN,
             WindowEvent.RELEASE_ARROW_LEFT,
             WindowEvent.RELEASE_ARROW_RIGHT,
-            WindowEvent.RELEASE_ARROW_UP,
-            WindowEvent.PRESS_BUTTON_A,
-            WindowEvent.PRESS_BUTTON_B,
+            WindowEvent.RELEASE_ARROW_UP
+        ]
+
+        self.release_button = [
             WindowEvent.RELEASE_BUTTON_A,
-            WindowEvent.RELEASE_BUTTON_B,
-            WindowEvent.PASS
+            WindowEvent.RELEASE_BUTTON_B
         ]
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(4320,), dtype=np.float)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(40, 36, 3), dtype=np.uint8)
 
-        head = 'headless' if headless else 'SDL2'
+        head = 'headless' if config['headless'] else 'SDL2'
 
         self.pyboy = PyBoy(
-                gb_path,
+                config['gb_path'],
                 debugging=False,
                 disable_input=False,
                 window_type=head,
@@ -68,7 +79,6 @@ class RedGymEnv(gym.Env):
 
         self.pyboy.set_emulation_speed(0)
         self.reset()
-
 
     def reset(self):
         # restart game, skipping credits
@@ -86,35 +96,43 @@ class RedGymEnv(gym.Env):
         return self.render()
 
     def render(self):
-        game_pixels_render = self.screen.screen_ndarray().astype(np.float) # (160, 144, 3)
+        game_pixels_render = self.screen.screen_ndarray() # (160, 144, 3)
         output_size = (40, 36)
         bin_size = (4, 4)
         small_image = game_pixels_render.reshape(
             (output_size[0], bin_size[0], 
-            output_size[1], bin_size[1], 3)).max(3).max(1).flatten()
+            output_size[1], bin_size[1], 3)).max(3).max(1)
         return small_image
         
 
     def step(self, action):
 
-        action = self.valid_actions[action]
-
-        self.pyboy.send_input(action)
+        self.pyboy.send_input(self.valid_actions[action])
         for i in range(self.act_freq):
+            # release action, so they are stateless
+            if i == self.act_freq - 1:
+                if action < 4:
+                    # release arrow
+                    self.pyboy.send_input(self.release_arrow[action])
+                if action > 3 and action < 6:
+                    # release button 
+                    self.pyboy.send_input(self.release_button[action - 4])
             self.pyboy.tick()
 
         obs = self.render()
+
+        obs_flat = obs.flatten().astype(np.float)
                 
         if self.knn_index.get_current_count() == 0:
             self.knn_index.add_items(
-                obs, np.array([self.knn_index.get_current_count()])
+                obs_flat, np.array([self.knn_index.get_current_count()])
             )
 
         # Query dataset, k - number of closest elements
-        labels, distances = self.knn_index.knn_query(obs, k = 1)
+        labels, distances = self.knn_index.knn_query(obs_flat, k = 1)
         if distances[0] > self.similar_frame_dist:
             self.knn_index.add_items(
-                obs, np.array([self.knn_index.get_current_count()])
+                obs_flat, np.array([self.knn_index.get_current_count()])
             )
 
         reward = self.knn_index.get_current_count() / 100
