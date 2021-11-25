@@ -19,25 +19,27 @@ class RedGymEnv(gym.Env):
         if config is None:
             self.config = {
                 'headless':True, 
-                'action_freq': 5, 'init_state':'init.state', 'max_steps': 100, 
-                'gb_path': './PokemonRed.gb', 'debug': False
+                'action_freq': 5, 'init_state':'init.state', 'max_steps': 100,  'print_rewards': False,
+                'gb_path': './PokemonRed.gb', 'debug': False, 'sim_frame_dist': 1500000.0
             }
 
         self.debug = config['debug']
+        self.print_rewards = config['print_rewards']
         self.vec_dim = 4320 #1000
+        self.headless = config['headless']
         self.num_elements = 20000 # max
         self.init_state = config['init_state']
         self.act_freq = config['action_freq']
         self.max_steps = config['max_steps']
         self.downsample_factor = 4
-        self.similar_frame_dist = 1500000.0
+        self.similar_frame_dist = config['sim_frame_dist']
         self.episode_count = 1
         self.instance_id = str(uuid.uuid4())[:8]
 
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
-        self.reward_range = (0, 50)
+        self.reward_range = (-0.5, 1.5)
 
         self.valid_actions = [
             WindowEvent.PRESS_ARROW_DOWN,
@@ -77,7 +79,7 @@ class RedGymEnv(gym.Env):
 
         self.screen = self.pyboy.botsupport_manager().screen()
 
-        self.pyboy.set_emulation_speed(0)
+        self.pyboy.set_emulation_speed(0 if config['headless'] else 2)
         self.reset()
 
     def reset(self):
@@ -122,7 +124,7 @@ class RedGymEnv(gym.Env):
         obs = self.render()
 
         obs_flat = obs.flatten().astype(np.float)
-                
+
         if self.knn_index.get_current_count() == 0:
             self.knn_index.add_items(
                 obs_flat, np.array([self.knn_index.get_current_count()])
@@ -135,7 +137,7 @@ class RedGymEnv(gym.Env):
                 obs_flat, np.array([self.knn_index.get_current_count()])
             )
 
-        reward = self.knn_index.get_current_count() / 100
+        reward = (self.knn_index.get_current_count() / 100) + self.reward_range[0]
 
         if self.debug:
             print(frame)
@@ -145,6 +147,17 @@ class RedGymEnv(gym.Env):
             )
 
         self.step_count += 1
+        if self.print_rewards and self.step_count % 20 == 0:
+            steps = 15
+            r_get = int((reward - self.reward_range[0]) / (self.reward_range[1] - self.reward_range[0]) * steps)
+            r_not_get = steps - r_get
+            for i in range(r_get):
+                print('-', end ='', flush = True)
+            for i in range(r_not_get):
+                print(' ', end ='', flush = True)
+            print('|', end ='', flush = True)
+        if self.print_rewards and self.step_count == self.max_steps:
+            print(f' {reward:.3f}', flush=True)
 
         return obs, reward, self.step_count >= self.max_steps, {}
 

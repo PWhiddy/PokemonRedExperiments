@@ -6,8 +6,8 @@ from stable_baselines3.common import env_checker
 
 env_config = {
                 'headless': True, 
-                'action_freq': 5, 'init_state': '../init.state', 'max_steps': 150, 
-                'gb_path': '../PokemonRed.gb', 'debug': False
+                'action_freq': 5, 'init_state': '../init.state', 'max_steps': 200, 'print_rewards': True,
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2500000.0
             }
 
 env = RedGymEnv(env_config)
@@ -21,7 +21,7 @@ if exists(file_name+'.zip'):
     print('loading checkpoint')
     model = PPO.load(file_name, env=env)
 else:
-    model = PPO('CnnPolicy', env, verbose=1, n_steps=2048*6, batch_size=128, n_epochs=3, gamma=0.99)
+    model = PPO('CnnPolicy', env, verbose=1, n_steps=2048*2, batch_size=128, n_epochs=20, gamma=0.99)
 
 for i in range(learn_steps):
     model.learn(total_timesteps=80000)
