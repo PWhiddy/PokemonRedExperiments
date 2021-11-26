@@ -1,9 +1,12 @@
 
 import sys
 import uuid 
+import os
 
 import numpy as np
-from pyboy import PyBoy, botsupport
+import matplotlib.pyplot as plt
+from skimage.transform import resize
+from pyboy import PyBoy
 import hnswlib
 
 import gym
@@ -18,12 +21,13 @@ class RedGymEnv(gym.Env):
 
         if config is None:
             self.config = {
-                'headless':True, 
+                'headless': True, 'save_final_state': False,
                 'action_freq': 5, 'init_state':'init.state', 'max_steps': 100,  'print_rewards': False,
                 'gb_path': './PokemonRed.gb', 'debug': False, 'sim_frame_dist': 1500000.0
             }
 
         self.debug = config['debug']
+        self.save_final_state = config['save_final_state']
         self.print_rewards = config['print_rewards']
         self.vec_dim = 4320 #1000
         self.headless = config['headless']
@@ -33,13 +37,13 @@ class RedGymEnv(gym.Env):
         self.max_steps = config['max_steps']
         self.downsample_factor = 4
         self.similar_frame_dist = config['sim_frame_dist']
-        self.episode_count = 1
+        self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
 
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
-        self.reward_range = (-0.5, 1.5)
+        self.reward_range = (0, 1500)
 
         self.valid_actions = [
             WindowEvent.PRESS_ARROW_DOWN,
@@ -65,7 +69,7 @@ class RedGymEnv(gym.Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(40, 36, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(36, 40, 3), dtype=np.uint8)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -94,18 +98,15 @@ class RedGymEnv(gym.Env):
             max_elements=self.num_elements, ef_construction=100, M=16)
 
         self.step_count = 0
-
+        self.reset_count += 1
         return self.render()
 
-    def render(self):
+    def render(self, reduce_res=True):
         game_pixels_render = self.screen.screen_ndarray() # (160, 144, 3)
-        output_size = (40, 36)
-        bin_size = (4, 4)
-        small_image = game_pixels_render.reshape(
-            (output_size[0], bin_size[0], 
-            output_size[1], bin_size[1], 3)).max(3).max(1)
-        return small_image
-        
+        output_size = (36, 40, 3)
+        if reduce_res:
+            game_pixels_render = (255*resize(game_pixels_render, output_size)).astype(np.uint8)
+        return game_pixels_render
 
     def step(self, action):
 
@@ -123,9 +124,12 @@ class RedGymEnv(gym.Env):
 
         obs = self.render()
 
-        obs_flat = obs.flatten().astype(np.float)
+        obs_flat = obs.flatten().astype(np.float32)
+
+        reward = 0
 
         if self.knn_index.get_current_count() == 0:
+            reward = 1
             self.knn_index.add_items(
                 obs_flat, np.array([self.knn_index.get_current_count()])
             )
@@ -133,11 +137,14 @@ class RedGymEnv(gym.Env):
         # Query dataset, k - number of closest elements
         labels, distances = self.knn_index.knn_query(obs_flat, k = 1)
         if distances[0] > self.similar_frame_dist:
+            reward = 1
+            if self.print_rewards:
+                print('-', end='', flush=True)
             self.knn_index.add_items(
                 obs_flat, np.array([self.knn_index.get_current_count()])
             )
 
-        reward = (self.knn_index.get_current_count() / 100) + self.reward_range[0]
+        #reward = (self.knn_index.get_current_count() / 100) + self.reward_range[0]
 
         if self.debug:
             print(frame)
@@ -147,6 +154,7 @@ class RedGymEnv(gym.Env):
             )
 
         self.step_count += 1
+        '''
         if self.print_rewards and self.step_count % 20 == 0:
             steps = 15
             r_get = int((reward - self.reward_range[0]) / (self.reward_range[1] - self.reward_range[0]) * steps)
@@ -156,8 +164,14 @@ class RedGymEnv(gym.Env):
             for i in range(r_not_get):
                 print(' ', end ='', flush = True)
             print('|', end ='', flush = True)
+        '''
         if self.print_rewards and self.step_count == self.max_steps:
-            print(f' {reward:.3f}', flush=True)
+            raw_r = self.knn_index.get_current_count()
+            print(f'\n{raw_r}', flush=True)
+            if self.save_final_state:
+                os.makedirs('final_states', exist_ok=True)
+                plt.imsave(f'final_states/frame_r{raw_r}_{self.reset_count}_small.jpeg', self.render(reduce_res=True))
+                plt.imsave(f'final_states/frame_r{raw_r}_{self.reset_count}_full.jpeg', self.render(reduce_res=False))
 
         return obs, reward, self.step_count >= self.max_steps, {}
 
