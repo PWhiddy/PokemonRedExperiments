@@ -5,9 +5,9 @@ from stable_baselines3 import A2C, PPO
 from stable_baselines3.common import env_checker
 
 env_config = {
-                'headless': True, 'save_final_state': True,
+                'headless': False, 'save_final_state': True,
                 'action_freq': 5, 'init_state': '../init.state', 'max_steps': 2*768, 'print_rewards': True,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 1500000.0
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2500000.0
             }
 
 env = RedGymEnv(env_config)
@@ -16,7 +16,7 @@ env_checker.check_env(env)
 
 # env = gym.make('CartPole-v1')
 learn_steps = 40
-file_name = 'poke_'
+file_name = 'poke_1'
 if exists(file_name+'.zip'):
     print('loading checkpoint')
     model = PPO.load(file_name, env=env)
