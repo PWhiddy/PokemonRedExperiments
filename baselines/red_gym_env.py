@@ -52,6 +52,7 @@ class RedGymEnv(gym.Env):
             WindowEvent.PRESS_ARROW_UP,
             WindowEvent.PRESS_BUTTON_A,
             WindowEvent.PRESS_BUTTON_B,
+            WindowEvent.PRESS_BUTTON_START,
             WindowEvent.PASS
         ]
 
@@ -83,7 +84,7 @@ class RedGymEnv(gym.Env):
 
         self.screen = self.pyboy.botsupport_manager().screen()
 
-        self.pyboy.set_emulation_speed(0 if config['headless'] else 2)
+        self.pyboy.set_emulation_speed(0 if config['headless'] else 4)
         self.reset()
 
     def reset(self):
@@ -120,6 +121,8 @@ class RedGymEnv(gym.Env):
                 if action > 3 and action < 6:
                     # release button 
                     self.pyboy.send_input(self.release_button[action - 4])
+                if action == WindowEvent.PRESS_BUTTON_START:
+                    self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
             self.pyboy.tick()
 
         obs = self.render()
