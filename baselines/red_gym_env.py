@@ -2,6 +2,7 @@
 import sys
 import uuid 
 import os
+from math import floor
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -40,10 +41,9 @@ class RedGymEnv(gym.Env):
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
 
-
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
-        self.reward_range = (0, 1500)
+        self.reward_range = (0, 2500)
 
         self.valid_actions = [
             WindowEvent.PRESS_ARROW_DOWN,
@@ -68,9 +68,18 @@ class RedGymEnv(gym.Env):
             WindowEvent.RELEASE_BUTTON_B
         ]
 
+        self.output_shape = (36, 40, 3)
+        self.mem_padding = 2
+        self.memory_height = 8
+        self.col_steps = 4
+        self.output_full = (self.output_shape[0] + self.mem_padding + self.memory_height,
+                            self.output_shape[1],
+                            self.output_shape[2]
+        )
+
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(36, 40, 3), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=self.output_full, dtype=np.uint8)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -102,11 +111,20 @@ class RedGymEnv(gym.Env):
         self.reset_count += 1
         return self.render()
 
-    def render(self, reduce_res=True):
-        game_pixels_render = self.screen.screen_ndarray() # (160, 144, 3)
-        output_size = (36, 40, 3)
+    def render(self, reduce_res=True, add_memory=True):
+        game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
-            game_pixels_render = (255*resize(game_pixels_render, output_size)).astype(np.uint8)
+            game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
+            if add_memory:
+                game_pixels_render = np.concatenate(
+                    (
+                        self.create_exploration_memory(), 
+                        np.zeros(
+                            shape=(self.mem_padding, self.output_shape[1], 3), 
+                            dtype=np.uint8),
+                        game_pixels_render
+                    ),
+                    axis=0)
         return game_pixels_render
 
     def step(self, action):
@@ -125,9 +143,10 @@ class RedGymEnv(gym.Env):
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
             self.pyboy.tick()
 
-        obs = self.render()
+        obs_memory = self.render()
 
-        obs_flat = obs.flatten().astype(np.float32)
+        obs_flat = obs_memory[
+            self.memory_height + self.mem_padding:, ...].flatten().astype(np.float32)
 
         reward = 0
 
@@ -173,9 +192,30 @@ class RedGymEnv(gym.Env):
             print(f'\n{raw_r}', flush=True)
             if self.save_final_state:
                 os.makedirs('final_states', exist_ok=True)
-                plt.imsave(f'final_states/frame_r{raw_r}_{self.reset_count}_small.jpeg', self.render(reduce_res=True))
-                plt.imsave(f'final_states/frame_r{raw_r}_{self.reset_count}_full.jpeg', self.render(reduce_res=False))
+                plt.imsave(
+                    f'final_states/frame_r{raw_r}_{self.reset_count}_small.jpeg', 
+                    obs_memory)
+                plt.imsave(
+                    f'final_states/frame_r{raw_r}_{self.reset_count}_full.jpeg', 
+                    self.render(reduce_res=False))
 
-        return obs, reward, self.step_count >= self.max_steps, {}
+        return obs_memory, reward, self.step_count >= self.max_steps, {}
+
+    def create_exploration_memory(self):
+        w = self.output_shape[1]
+        h = self.memory_height
+        total_reward = self.knn_index.get_current_count()
+        col_steps = self.col_steps
+        row = floor(total_reward / (h * col_steps))
+        memory = np.zeros(shape=(h, w, 3), dtype=np.uint8)
+        memory[:, :row, :] = 255
+        row_covered = row * h * col_steps
+        col = floor((total_reward - row_covered) / col_steps)
+        memory[:col, row, :] = 255
+        col_covered = col * col_steps
+        last_pixel = floor(total_reward - row_covered - col_covered) 
+        memory[col, row, :] = last_pixel * (255 // col_steps)
+        return memory
+
 
 

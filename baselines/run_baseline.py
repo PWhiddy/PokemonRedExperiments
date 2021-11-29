@@ -21,7 +21,7 @@ if exists(file_name+'.zip'):
     print('loading checkpoint')
     model = PPO.load(file_name, env=env)
 else:
-    model = PPO('CnnPolicy', env, verbose=1, n_steps=2048*10*4, batch_size=256, n_epochs=10, gamma=0.99)
+    model = PPO('CnnPolicy', env, verbose=1, n_steps=2048*10*4, batch_size=256, n_epochs=5, gamma=0.99)
 
 for i in range(learn_steps):
     model.learn(total_timesteps=480000)
