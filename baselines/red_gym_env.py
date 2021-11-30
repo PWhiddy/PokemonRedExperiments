@@ -3,6 +3,7 @@ import sys
 import uuid 
 import os
 from math import floor
+import json
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -20,12 +21,14 @@ class RedGymEnv(gym.Env):
     def __init__(
         self, config=None):
 
+        '''
         if config is None:
-            self.config = {
+            config = {
                 'headless': True, 'save_final_state': False,
                 'action_freq': 5, 'init_state':'init.state', 'max_steps': 100,  'print_rewards': False,
                 'gb_path': './PokemonRed.gb', 'debug': False, 'sim_frame_dist': 1500000.0
             }
+        '''
 
         self.debug = config['debug']
         self.save_final_state = config['save_final_state']
@@ -40,6 +43,7 @@ class RedGymEnv(gym.Env):
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
+        self.all_runs = []
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
@@ -72,10 +76,13 @@ class RedGymEnv(gym.Env):
         self.mem_padding = 2
         self.memory_height = 8
         self.col_steps = 4
-        self.output_full = (self.output_shape[0] + self.mem_padding + self.memory_height,
+        self.output_full = (
+            self.output_shape[0] + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
                             self.output_shape[2]
         )
+
+        self.recent_memory = np.zeros(self.output_shape[1]*self.memory_height, dtype=np.uint8)
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
@@ -116,12 +123,15 @@ class RedGymEnv(gym.Env):
         if reduce_res:
             game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
             if add_memory:
+                pad = np.zeros(
+                    shape=(self.mem_padding, self.output_shape[1], 3), 
+                    dtype=np.uint8)
                 game_pixels_render = np.concatenate(
                     (
                         self.create_exploration_memory(), 
-                        np.zeros(
-                            shape=(self.mem_padding, self.output_shape[1], 3), 
-                            dtype=np.uint8),
+                        pad,
+                        self.create_recent_memory(),
+                        pad,
                         game_pixels_render
                     ),
                     axis=0)
@@ -146,7 +156,7 @@ class RedGymEnv(gym.Env):
         obs_memory = self.render()
 
         obs_flat = obs_memory[
-            self.memory_height + self.mem_padding:, ...].flatten().astype(np.float32)
+            2 * (self.memory_height + self.mem_padding):, ...].flatten().astype(np.float32)
 
         reward = 0
 
@@ -160,12 +170,14 @@ class RedGymEnv(gym.Env):
         labels, distances = self.knn_index.knn_query(obs_flat, k = 1)
         if distances[0] > self.similar_frame_dist:
             reward = 1
-            if self.print_rewards:
-                print('-', end='', flush=True)
+            #if self.print_rewards:
+            #    print('-', end='', flush=True)
             self.knn_index.add_items(
                 obs_flat, np.array([self.knn_index.get_current_count()])
             )
 
+        self.recent_memory = np.roll(self.recent_memory, 1)
+        self.recent_memory[0] = reward * 255
         #reward = (self.knn_index.get_current_count() / 100) + self.reward_range[0]
 
         if self.debug:
@@ -176,6 +188,12 @@ class RedGymEnv(gym.Env):
             )
 
         self.step_count += 1
+
+        #done = self.step_count >= self.max_steps
+        done = False
+        if self.step_count > 128 and self.recent_memory.sum() < (255 * 1):
+            done = True
+
         '''
         if self.print_rewards and self.step_count % 20 == 0:
             steps = 15
@@ -187,9 +205,10 @@ class RedGymEnv(gym.Env):
                 print(' ', end ='', flush = True)
             print('|', end ='', flush = True)
         '''
-        if self.print_rewards and self.step_count == self.max_steps:
+
+        if self.print_rewards and done:
             raw_r = self.knn_index.get_current_count()
-            print(f'\n{raw_r}', flush=True)
+            print(f'\nenv: {self.instance_id} - {raw_r}', flush=True)
             if self.save_final_state:
                 os.makedirs('final_states', exist_ok=True)
                 plt.imsave(
@@ -199,7 +218,12 @@ class RedGymEnv(gym.Env):
                     f'final_states/frame_r{raw_r}_{self.reset_count}_full.jpeg', 
                     self.render(reduce_res=False))
 
-        return obs_memory, reward, self.step_count >= self.max_steps, {}
+        if done:
+            self.all_runs.append(self.knn_index.get_current_count())
+            with open(f'all_runs_{self.instance_id}.json', 'w') as f:
+                json.dump(self.all_runs, f)
+
+        return obs_memory, reward, done, {}
 
     def create_exploration_memory(self):
         w = self.output_shape[1]
@@ -217,5 +241,7 @@ class RedGymEnv(gym.Env):
         memory[col, row, :] = last_pixel * (255 // col_steps)
         return memory
 
-
-
+    def create_recent_memory(self):
+        return np.stack((self.recent_memory.reshape(
+            self.output_shape[1], 
+            self.memory_height).T,)*3, axis=-1)
