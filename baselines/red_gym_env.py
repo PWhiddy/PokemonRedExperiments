@@ -39,6 +39,7 @@ class RedGymEnv(gym.Env):
         self.init_state = config['init_state']
         self.act_freq = config['action_freq']
         self.max_steps = config['max_steps']
+        self.early_stopping = config['early_stop']
         self.downsample_factor = 4
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
@@ -114,6 +115,7 @@ class RedGymEnv(gym.Env):
         self.knn_index.init_index(
             max_elements=self.num_elements, ef_construction=100, M=16)
 
+        self.progress_reward = 0
         self.step_count = 0
         self.reset_count += 1
         return self.render()
@@ -160,8 +162,15 @@ class RedGymEnv(gym.Env):
 
         reward = 0
 
+        prog_reward = self.get_game_state_reward()
+        new_prog = 0
+        if prog_reward > self.progress_reward:
+            new_prog = prog_reward - self.progress_reward
+            reward += new_prog
+            self.progress_reward = prog_reward
+
         if self.knn_index.get_current_count() == 0:
-            reward = 1
+            reward += 1
             self.knn_index.add_items(
                 obs_flat, np.array([self.knn_index.get_current_count()])
             )
@@ -169,19 +178,30 @@ class RedGymEnv(gym.Env):
         # Query dataset, k - number of closest elements
         labels, distances = self.knn_index.knn_query(obs_flat, k = 1)
         if distances[0] > self.similar_frame_dist:
-            reward = 1
-            #if self.print_rewards:
-            #    print('-', end='', flush=True)
+            reward += 1
             self.knn_index.add_items(
                 obs_flat, np.array([self.knn_index.get_current_count()])
             )
+        
+        exp_r = self.knn_index.get_current_count()
+        total_r = self.progress_reward + exp_r
+        if self.print_rewards:
+            print(
+                f'\rexplore reward: {exp_r} \
+                prog reward: {self.progress_reward} total: {total_r}\
+                    ', end='', flush=True)
+
+        if self.step_count % 50 == 0:
+            plt.imsave(
+                f'curframe.jpeg', 
+                self.render(reduce_res=False))
 
         self.recent_memory = np.roll(self.recent_memory, 1)
-        self.recent_memory[0] = reward * 255
+        self.recent_memory[0] = min(reward * 8, 255)
         #reward = (self.knn_index.get_current_count() / 100) + self.reward_range[0]
 
         if self.debug:
-            print(frame)
+            #print(frame)
             print(
                 f'{self.knn_index.get_current_count()} '
                 f'total frames indexed, current closest is: {distances[0]}'
@@ -189,10 +209,12 @@ class RedGymEnv(gym.Env):
 
         self.step_count += 1
 
-        #done = self.step_count >= self.max_steps
-        done = False
-        if self.step_count > 128 and self.recent_memory.sum() < (255 * 1):
-            done = True
+        if self.early_stopping:
+            done = False
+            if self.step_count > 128 and self.recent_memory.sum() < (255 * 1):
+                done = True
+        else:
+            done = self.step_count >= self.max_steps
 
         '''
         if self.print_rewards and self.step_count % 20 == 0:
@@ -207,20 +229,19 @@ class RedGymEnv(gym.Env):
         '''
 
         if self.print_rewards and done:
-            raw_r = self.knn_index.get_current_count()
-            print(f'\nenv: {self.instance_id} - {raw_r}', flush=True)
+            print('', flush=True)
             if self.save_final_state:
                 os.makedirs('final_states', exist_ok=True)
                 plt.imsave(
-                    f'final_states/frame_r{raw_r}_{self.reset_count}_small.jpeg', 
+                    f'final_states/frame_r{total_r}_{self.reset_count}_small.jpeg', 
                     obs_memory)
                 plt.imsave(
-                    f'final_states/frame_r{raw_r}_{self.reset_count}_full.jpeg', 
+                    f'final_states/frame_r{total_r}_{self.reset_count}_full.jpeg', 
                     self.render(reduce_res=False))
 
         if done:
-            self.all_runs.append(self.knn_index.get_current_count())
-            with open(f'all_runs_{self.instance_id}.json', 'w') as f:
+            self.all_runs.append(total_r)
+            with open(f'all_runs.json', 'w') as f:
                 json.dump(self.all_runs, f)
 
         return obs_memory, reward, done, {}
@@ -228,7 +249,7 @@ class RedGymEnv(gym.Env):
     def create_exploration_memory(self):
         w = self.output_shape[1]
         h = self.memory_height
-        total_reward = self.knn_index.get_current_count()
+        total_reward = self.knn_index.get_current_count() + self.progress_reward
         col_steps = self.col_steps
         row = floor(total_reward / (h * col_steps))
         memory = np.zeros(shape=(h, w, 3), dtype=np.uint8)
@@ -245,3 +266,26 @@ class RedGymEnv(gym.Env):
         return np.stack((self.recent_memory.reshape(
             self.output_shape[1], 
             self.memory_height).T,)*3, axis=-1)
+    
+    def read_m(self, addr):
+        return self.pyboy.get_memory_value(addr)
+
+    def get_game_state_reward(self, print_stats=False):
+        # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
+        num_poke = self.pyboy.get_memory_value(int(0xD163))
+        poke_levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        poke_xps = [self.poke_xp(a) for a in [0xD179, 0xD1A5, 0xD1D1, 0xD1FD, 0xD229, 0xD255]]
+        seen_poke_count = sum([self.bit_count(self.read_m(i)) for i in range(0xD30A, 0xD31D)])
+        if print_stats:
+            print(f'num_poke : {num_poke}')
+            print(f'poke_levels : {poke_levels}')
+            print(f'poke_xps : {poke_xps}')
+            print(f'seen_poke_count : {seen_poke_count}')
+        return 2*sum(poke_xps) + seen_poke_count * 100
+
+    # built-in since python 3.10
+    def bit_count(self, bits):
+        return bin(bits).count("1")
+
+    def poke_xp(self, start_add):
+        return 256*256*self.read_m(start_add) + 256*self.read_m(start_add+1) + self.read_m(start_add+2)
