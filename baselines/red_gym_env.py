@@ -76,7 +76,7 @@ class RedGymEnv(gym.Env):
         self.output_shape = (36, 40, 3)
         self.mem_padding = 2
         self.memory_height = 8
-        self.col_steps = 4
+        self.col_steps = 16
         self.output_full = (
             self.output_shape[0] + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
@@ -144,7 +144,7 @@ class RedGymEnv(gym.Env):
         self.pyboy.send_input(self.valid_actions[action])
         for i in range(self.act_freq):
             # release action, so they are stateless
-            if i == self.act_freq - 1:
+            if i == 8:
                 if action < 4:
                     # release arrow
                     self.pyboy.send_input(self.release_arrow[action])
@@ -187,7 +187,7 @@ class RedGymEnv(gym.Env):
         total_r = self.progress_reward + exp_r
         if self.print_rewards:
             print(
-                f'\rexplore reward: {exp_r} \
+                f'\rstep: {self.step_count} explore reward: {exp_r} \
                 prog reward: {self.progress_reward} total: {total_r}\
                     ', end='', flush=True)
 
@@ -281,7 +281,7 @@ class RedGymEnv(gym.Env):
             print(f'poke_levels : {poke_levels}')
             print(f'poke_xps : {poke_xps}')
             print(f'seen_poke_count : {seen_poke_count}')
-        return 2*sum(poke_xps) + seen_poke_count * 100
+        return (2*sum(poke_xps) + seen_poke_count * 75)
 
     # built-in since python 3.10
     def bit_count(self, bits):
