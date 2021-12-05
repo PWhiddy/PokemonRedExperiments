@@ -6,5 +6,4 @@ rollouts
 .ipynb_checkpoints
 raw_documentation
 *.pem
-*.zip
 _autoplay.mp4
