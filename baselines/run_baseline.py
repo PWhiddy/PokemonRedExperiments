@@ -6,7 +6,7 @@ from stable_baselines3.common import env_checker
 
 env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../init.state', 'max_steps': 10*2*2048, 'print_rewards': True,
+                'action_freq': 24, 'init_state': '../init.state', 'max_steps': 2*2048, 'print_rewards': True,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 7_000_000.0
             }
 
@@ -15,8 +15,8 @@ env = RedGymEnv(config=env_config)
 env_checker.check_env(env)
 
 learn_steps = 40
-file_name = 'poke_67'
-if exists(file_name+'.zip'):
+file_name = 'poke_'
+if exists(file_name + '.zip'):
     print('loading checkpoint')
     model = PPO.load(file_name, env=env)
 else:

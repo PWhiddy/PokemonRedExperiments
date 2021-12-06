@@ -83,8 +83,6 @@ class RedGymEnv(gym.Env):
                             self.output_shape[2]
         )
 
-        self.recent_memory = np.zeros(self.output_shape[1]*self.memory_height, dtype=np.uint8)
-
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
         self.observation_space = spaces.Box(low=0, high=255, shape=self.output_full, dtype=np.uint8)
@@ -115,7 +113,11 @@ class RedGymEnv(gym.Env):
         self.knn_index.init_index(
             max_elements=self.num_elements, ef_construction=100, M=16)
 
+        self.recent_memory = np.zeros(self.output_shape[1]*self.memory_height, dtype=np.uint8)
+
         self.progress_reward = 0
+        self.explore_reward = 0
+        self.total_reward = 0
         self.step_count = 0
         self.reset_count += 1
         return self.render()
@@ -141,6 +143,32 @@ class RedGymEnv(gym.Env):
 
     def step(self, action):
 
+        self.run_action_on_emulator(action)
+
+        obs_memory = self.render()
+
+        # trim off memory from frame for knn index
+        obs_flat = obs_memory[
+            2 * (self.memory_height + self.mem_padding):, ...].flatten().astype(np.float32)
+
+        self.update_frame_knn_index(obs_flat)
+
+        new_reward = self.update_reward()
+
+        # shift over short term reward memory 1 slot
+        self.recent_memory = np.roll(self.recent_memory, 1)
+        self.recent_memory[0] = min(new_reward * 8, 255)
+
+        done = self.check_if_done()
+
+        self.save_and_print_info(done, obs_memory)
+
+        self.step_count += 1
+
+        return obs_memory, new_reward, done, {}
+
+    def run_action_on_emulator(self, action):
+        # press button then release after some steps
         self.pyboy.send_input(self.valid_actions[action])
         for i in range(self.act_freq):
             # release action, so they are stateless
@@ -155,101 +183,43 @@ class RedGymEnv(gym.Env):
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
             self.pyboy.tick()
 
-        obs_memory = self.render()
-
-        obs_flat = obs_memory[
-            2 * (self.memory_height + self.mem_padding):, ...].flatten().astype(np.float32)
-
-        reward = 0
-
-        prog_reward = self.get_game_state_reward()
-        new_prog = 0
-        if prog_reward > self.progress_reward:
-            new_prog = prog_reward - self.progress_reward
-            reward += new_prog
-            self.progress_reward = prog_reward
-
+    def update_frame_knn_index(self, frame_vec):
         if self.knn_index.get_current_count() == 0:
-            reward += 1
+            # if index is empty add current frame
             self.knn_index.add_items(
-                obs_flat, np.array([self.knn_index.get_current_count()])
+                frame_vec, np.array([self.knn_index.get_current_count()])
             )
-
-        # Query dataset, k - number of closest elements
-        labels, distances = self.knn_index.knn_query(obs_flat, k = 1)
-        if distances[0] > self.similar_frame_dist:
-            reward += 1
-            self.knn_index.add_items(
-                obs_flat, np.array([self.knn_index.get_current_count()])
-            )
-        
-        exp_r = self.knn_index.get_current_count()
-        total_r = self.progress_reward + exp_r
-        if self.print_rewards:
-            print(
-                f'\rstep: {self.step_count} explore reward: {exp_r} \
-                prog reward: {self.progress_reward} total: {total_r}\
-                    ', end='', flush=True)
-
-        if self.step_count % 50 == 0:
-            plt.imsave(
-                f'curframe.jpeg', 
-                self.render(reduce_res=False))
-
-        self.recent_memory = np.roll(self.recent_memory, 1)
-        self.recent_memory[0] = min(reward * 8, 255)
-        #reward = (self.knn_index.get_current_count() / 100) + self.reward_range[0]
-
-        if self.debug:
-            #print(frame)
-            print(
-                f'{self.knn_index.get_current_count()} '
-                f'total frames indexed, current closest is: {distances[0]}'
-            )
-
-        self.step_count += 1
-
-        if self.early_stopping:
-            done = False
-            if self.step_count > 128 and self.recent_memory.sum() < (255 * 1):
-                done = True
         else:
-            done = self.step_count >= self.max_steps
+            # check for nearest frame and add if current 
+            labels, distances = self.knn_index.knn_query(frame_vec, k = 1)
+            if distances[0] > self.similar_frame_dist:
+                self.knn_index.add_items(
+                    frame_vec, np.array([self.knn_index.get_current_count()])
+                )
 
-        '''
-        if self.print_rewards and self.step_count % 20 == 0:
-            steps = 15
-            r_get = int((reward - self.reward_range[0]) / (self.reward_range[1] - self.reward_range[0]) * steps)
-            r_not_get = steps - r_get
-            for i in range(r_get):
-                print('-', end ='', flush = True)
-            for i in range(r_not_get):
-                print(' ', end ='', flush = True)
-            print('|', end ='', flush = True)
-        '''
+    def update_reward(self):
+        # compute reward
+        prog_reward = self.get_game_state_reward()
+        exp_reward = self.knn_index.get_current_count()
 
-        if self.print_rewards and done:
-            print('', flush=True)
-            if self.save_final_state:
-                os.makedirs('final_states', exist_ok=True)
-                plt.imsave(
-                    f'final_states/frame_r{total_r}_{self.reset_count}_small.jpeg', 
-                    obs_memory)
-                plt.imsave(
-                    f'final_states/frame_r{total_r}_{self.reset_count}_full.jpeg', 
-                    self.render(reduce_res=False))
+        new_explore = 0
+        if exp_reward > self.explore_reward:
+            new_explore = exp_reward - self.explore_reward
+            self.explore_reward = exp_reward
 
-        if done:
-            self.all_runs.append(total_r)
-            with open(f'all_runs.json', 'w') as f:
-                json.dump(self.all_runs, f)
-
-        return obs_memory, reward, done, {}
+        new_progress = 0
+        if prog_reward > self.progress_reward:
+            new_progress = prog_reward - self.progress_reward
+            self.progress_reward = prog_reward
+        
+        new_reward = (new_explore + new_progress)
+        self.total_reward += new_reward
+        return new_reward
 
     def create_exploration_memory(self):
         w = self.output_shape[1]
         h = self.memory_height
-        total_reward = self.knn_index.get_current_count() + self.progress_reward
+        total_reward = self.total_reward
         col_steps = self.col_steps
         row = floor(total_reward / (h * col_steps))
         memory = np.zeros(shape=(h, w, 3), dtype=np.uint8)
@@ -266,6 +236,43 @@ class RedGymEnv(gym.Env):
         return np.stack((self.recent_memory.reshape(
             self.output_shape[1], 
             self.memory_height).T,)*3, axis=-1)
+
+    def check_if_done(self):
+        if self.early_stopping:
+            done = False
+            if self.step_count > 128 and self.recent_memory.sum() < (255 * 1):
+                done = True
+        else:
+            done = self.step_count >= self.max_steps
+        return done
+
+    def save_and_print_info(self, done, obs_memory):
+        if self.print_rewards:
+            print(
+                f'\rstep: {self.step_count} explore reward: {self.explore_reward} \
+                prog reward: {self.progress_reward} total: {self.total_reward}\
+                    ', end='', flush=True)
+
+        if self.step_count % 50 == 0:
+            plt.imsave(
+                f'curframe.jpeg', 
+                self.render(reduce_res=False))
+
+        if self.print_rewards and done:
+            print('', flush=True)
+            if self.save_final_state:
+                os.makedirs('final_states', exist_ok=True)
+                plt.imsave(
+                    f'final_states/frame_r{self.total_reward:.4f}_{self.reset_count}_small.jpeg', 
+                    obs_memory)
+                plt.imsave(
+                    f'final_states/frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg', 
+                    self.render(reduce_res=False))
+
+        if done:
+            self.all_runs.append(self.total_reward)
+            with open(f'all_runs.json', 'w') as f:
+                json.dump(self.all_runs, f)
     
     def read_m(self, addr):
         return self.pyboy.get_memory_value(addr)
@@ -281,7 +288,7 @@ class RedGymEnv(gym.Env):
             print(f'poke_levels : {poke_levels}')
             print(f'poke_xps : {poke_xps}')
             print(f'seen_poke_count : {seen_poke_count}')
-        return (2*sum(poke_xps) + seen_poke_count * 75)
+        return (sum(poke_xps) + seen_poke_count * 50) + 1
 
     # built-in since python 3.10
     def bit_count(self, bits):
