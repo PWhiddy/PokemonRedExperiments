@@ -2,7 +2,7 @@
 import sys
 import uuid 
 import os
-from math import floor
+from math import floor, sqrt
 import json
 
 import numpy as np
@@ -61,7 +61,7 @@ class RedGymEnv(gym.Env):
             WindowEvent.PASS
         ]
 
-        self.release_arrow = [            
+        self.release_arrow = [
             WindowEvent.RELEASE_ARROW_DOWN,
             WindowEvent.RELEASE_ARROW_LEFT,
             WindowEvent.RELEASE_ARROW_RIGHT,
@@ -115,8 +115,8 @@ class RedGymEnv(gym.Env):
 
         self.recent_memory = np.zeros(self.output_shape[1]*self.memory_height, dtype=np.uint8)
 
-        self.progress_reward = 0
-        self.explore_reward = 0
+        self.progress_reward = 1
+        self.explore_reward = 1
         self.total_reward = 0
         self.step_count = 0
         self.reset_count += 1
@@ -199,22 +199,13 @@ class RedGymEnv(gym.Env):
 
     def update_reward(self):
         # compute reward
-        prog_reward = self.get_game_state_reward()
-        exp_reward = self.knn_index.get_current_count()
+        self.progress_reward = self.get_game_state_reward()
+        self.explore_reward = self.knn_index.get_current_count()
 
-        new_explore = 0
-        if exp_reward > self.explore_reward:
-            new_explore = exp_reward - self.explore_reward
-            self.explore_reward = exp_reward
-
-        new_progress = 0
-        if prog_reward > self.progress_reward:
-            new_progress = prog_reward - self.progress_reward
-            self.progress_reward = prog_reward
-        
-        new_reward = (new_explore + new_progress)
-        self.total_reward += new_reward
-        return new_reward
+        new_total = sqrt(self.explore_reward * self.progress_reward)
+        new_step = new_total - self.total_reward
+        self.total_reward = new_total
+        return new_step
 
     def create_exploration_memory(self):
         w = self.output_shape[1]
