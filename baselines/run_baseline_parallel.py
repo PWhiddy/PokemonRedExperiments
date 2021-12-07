@@ -46,6 +46,6 @@ if __name__ == '__main__':
         model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=128, n_epochs=3, gamma=0.995)
 
     for i in range(learn_steps):
-        model.learn(total_timesteps=2048*1*128)
+        model.learn(total_timesteps=2048*3*128)
         model.save(file_name+str(i))
 

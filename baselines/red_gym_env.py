@@ -263,7 +263,7 @@ class RedGymEnv(gym.Env):
 
         if done:
             self.all_runs.append(self.total_reward)
-            with open(f'all_runs.json', 'w') as f:
+            with open(f'all_runs_{self.instance_id}.json', 'w') as f:
                 json.dump(self.all_runs, f)
     
     def read_m(self, addr):
