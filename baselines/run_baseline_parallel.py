@@ -6,9 +6,11 @@ from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 
+ep_length = 2048 * 3
+
 env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../init.state', 'max_steps': 6*2048, 'print_rewards': True,
+                'action_freq': 24, 'init_state': '../init.state', 'max_steps': ep_length, 'print_rewards': True,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 7_000_000.0
             }
 
@@ -32,8 +34,7 @@ def make_env(rank, seed=0):
 #env_checker.check_env(env)
 if __name__ == '__main__':
     
-    num_cpu = 24  # Number of processes to use
-    # Create the vectorized environment
+    num_cpu = 30  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i) for i in range(num_cpu)])
 
     learn_steps = 40
@@ -42,7 +43,7 @@ if __name__ == '__main__':
         print('loading checkpoint')
         model = PPO.load(file_name, env=env)
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=2048*6*24, batch_size=128, n_epochs=3, gamma=0.995)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=128, n_epochs=3, gamma=0.995)
 
     for i in range(learn_steps):
         model.learn(total_timesteps=2048*1*128)

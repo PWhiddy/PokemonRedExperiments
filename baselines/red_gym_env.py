@@ -117,7 +117,7 @@ class RedGymEnv(gym.Env):
 
         self.progress_reward = 1
         self.explore_reward = 1
-        self.total_reward = 0
+        self.total_reward = 1
         self.step_count = 0
         self.reset_count += 1
         return self.render()
@@ -202,7 +202,7 @@ class RedGymEnv(gym.Env):
         self.progress_reward = self.get_game_state_reward()
         self.explore_reward = self.knn_index.get_current_count()
 
-        new_total = sqrt(self.explore_reward * self.progress_reward)
+        new_total = self.explore_reward + self.progress_reward #sqrt(self.explore_reward * self.progress_reward)
         new_step = new_total - self.total_reward
         self.total_reward = new_total
         return new_step
@@ -243,11 +243,12 @@ class RedGymEnv(gym.Env):
                 f'\rstep: {self.step_count} explore reward: {self.explore_reward} \
                 prog reward: {self.progress_reward} total: {self.total_reward}\
                     ', end='', flush=True)
-
+        '''
         if self.step_count % 50 == 0:
             plt.imsave(
                 f'curframe.jpeg', 
                 self.render(reduce_res=False))
+        '''
 
         if self.print_rewards and done:
             print('', flush=True)
