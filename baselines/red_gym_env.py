@@ -4,12 +4,14 @@ import uuid
 import os
 from math import floor, sqrt
 import json
+from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage.transform import resize
 from pyboy import PyBoy
 import hnswlib
+import mediapy as media
 
 import gym
 from gym import spaces
@@ -31,6 +33,7 @@ class RedGymEnv(gym.Env):
         '''
 
         self.debug = config['debug']
+        self.session_name = config['session_name']
         self.save_final_state = config['save_final_state']
         self.print_rewards = config['print_rewards']
         self.vec_dim = 4320 #1000
@@ -40,10 +43,14 @@ class RedGymEnv(gym.Env):
         self.act_freq = config['action_freq']
         self.max_steps = config['max_steps']
         self.early_stopping = config['early_stop']
+        self.save_video = config['save_video']
+        self.video_interval = 2048 * self.act_freq
         self.downsample_factor = 4
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
+        self.s_path = Path(f'session_{self.session_name}')
+        self.s_path.mkdir(exist_ok=True)
         self.all_runs = []
 
         # Set this in SOME subclasses
@@ -115,6 +122,7 @@ class RedGymEnv(gym.Env):
 
         self.recent_memory = np.zeros(self.output_shape[1]*self.memory_height, dtype=np.uint8)
 
+        self.run_frames = []
         self.progress_reward = 1
         self.explore_reward = 1
         self.total_reward = 1
@@ -181,6 +189,8 @@ class RedGymEnv(gym.Env):
                     self.pyboy.send_input(self.release_button[action - 4])
                 if action == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
+            if self.save_video:
+                self.run_frames.append(self.render(reduce_res=False))
             self.pyboy.tick()
 
     def update_frame_knn_index(self, frame_vec):
@@ -243,27 +253,36 @@ class RedGymEnv(gym.Env):
                 f'\rstep: {self.step_count} explore reward: {self.explore_reward} \
                 prog reward: {self.progress_reward} total: {self.total_reward}\
                     ', end='', flush=True)
-        '''
+        
         if self.step_count % 50 == 0:
             plt.imsave(
-                f'curframe.jpeg', 
+                self.s_path / Path(f'curframe_{self.instance_id}.jpeg'), 
                 self.render(reduce_res=False))
-        '''
 
         if self.print_rewards and done:
             print('', flush=True)
             if self.save_final_state:
-                os.makedirs('final_states', exist_ok=True)
+                fs_path = self.s_path / Path('final_states')
+                fs_path.mkdir(exist_ok=True)
                 plt.imsave(
-                    f'final_states/frame_r{self.total_reward:.4f}_{self.reset_count}_small.jpeg', 
+                    fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_small.jpeg'), 
                     obs_memory)
                 plt.imsave(
-                    f'final_states/frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg', 
+                    fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg'), 
                     self.render(reduce_res=False))
+
+        if self.save_video and len(self.run_frames) % self.video_interval == 0:
+            # save frames as video
+            base_dir = self.s_path / Path('rollouts')
+            base_dir.mkdir(exist_ok=True)
+            out_frames = np.array(self.run_frames)
+            f_path = base_dir / Path(f'run_r_{self.total_reward}_{self.reset_count}_s{self.step_count}').with_suffix('.mp4')
+            media.write_video(f_path, out_frames, fps=60)
+            self.run_frames = []
 
         if done:
             self.all_runs.append(self.total_reward)
-            with open(f'all_runs_{self.instance_id}.json', 'w') as f:
+            with open(self.s_path / Path(f'all_runs_{self.instance_id}.json'), 'w') as f:
                 json.dump(self.all_runs, f)
     
     def read_m(self, addr):
