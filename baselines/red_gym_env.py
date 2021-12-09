@@ -292,6 +292,7 @@ class RedGymEnv(gym.Env):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         num_poke = self.pyboy.get_memory_value(int(0xD163))
         poke_levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        level_sum = max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
         poke_xps = [self.poke_xp(a) for a in [0xD179, 0xD1A5, 0xD1D1, 0xD1FD, 0xD229, 0xD255]]
         seen_poke_count = sum([self.bit_count(self.read_m(i)) for i in range(0xD30A, 0xD31D)])
         if print_stats:
@@ -299,7 +300,7 @@ class RedGymEnv(gym.Env):
             print(f'poke_levels : {poke_levels}')
             print(f'poke_xps : {poke_xps}')
             print(f'seen_poke_count : {seen_poke_count}')
-        return (sum(poke_xps) + seen_poke_count * 50) + 1
+        return (0.333*sum(poke_xps) + level_sum * 100 + seen_poke_count * 150) + 1
 
     # built-in since python 3.10
     def bit_count(self, bits):
