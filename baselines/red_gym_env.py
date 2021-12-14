@@ -70,10 +70,11 @@ class RedGymEnv(gym.Env):
             WindowEvent.RELEASE_BUTTON_B
         ]
 
+        # TODO split up memory for each reward type
         self.output_shape = (36, 40, 3)
         self.mem_padding = 2
         self.memory_height = 8
-        self.col_steps = 16
+        self.col_steps = 64
         self.output_full = (
             self.output_shape[0] + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
@@ -237,10 +238,11 @@ class RedGymEnv(gym.Env):
 
     def save_and_print_info(self, done, obs_memory):
         if self.print_rewards:
-            print(f'\rstep: {self.step_count:6d}', end='')
+            prog_string = f'step: {self.step_count:6d}'
             for key, val in self.progress_reward.items():
-                print(f' {key}: {val:6.1f}'
-            print(f' sum: {self.total_reward:6.1f}', end='', flush=True)
+                prog_string += f' {key}: {val:6.1f}'
+            prog_string += f' sum: {self.total_reward:6.1f}'
+            print(f'\r{prog_string}', end='', flush=True)
         
         if self.step_count % 50 == 0:
             plt.imsave(

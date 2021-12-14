@@ -36,7 +36,7 @@ if __name__ == '__main__':
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
     
-    num_cpu = 40 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     #env_checker.check_env(env)
     learn_steps = 40
