@@ -238,8 +238,8 @@ class RedGymEnv(gym.Env):
     def save_and_print_info(self, done, obs_memory):
         if self.print_rewards:
             print(
-                f'\rstep: {self.step_count} prog reward: {self.progress_reward} \
-                    total: {self.total_reward}', end='', flush=True)
+                f'\rstep: {self.step_count} {self.progress_reward}' +
+                f' sum: {self.total_reward}', end='', flush=True)
         
         if self.step_count % 50 == 0:
             plt.imsave(
@@ -298,11 +298,11 @@ class RedGymEnv(gym.Env):
             print(f'oak_parcel: {oak_parcel} oak_pokedex: {oak_pokedex} all_events_score: {all_events_score}')
         
         state_scores = {
-            'all_events': all_events_score * 100,
-            'seen_poke_count': seen_poke_count * 100,
-            'poke_xps': 0.25*sum(poke_xps),
-            'poke_levels': level_sum * 20,
-            'explore_unique_frames': self.knn_index.get_current_count()
+            'events': all_events_score * 100,
+            'seen_poke': seen_poke_count * 100,
+            'party_xp': 0.25*sum(poke_xps),
+            'levels': level_sum * 20,
+            'explore': self.knn_index.get_current_count()
         }
         
         return state_scores # 0.2*sum(poke_xps) + level_sum * 20 + seen_poke_count * 100 + 1
