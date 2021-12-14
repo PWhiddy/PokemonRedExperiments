@@ -1,4 +1,5 @@
 from os.path import exists
+from pathlib import Path
 import uuid
 from red_gym_env import RedGymEnv
 import gym
@@ -26,12 +27,12 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
     ep_length = 2048 * 10
-    sess_name = str(uuid.uuid4())[:8]
+    sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../init.state', 'max_steps': ep_length, 
-                'print_rewards': True,'save_video': False, 'session_name': sess_name,
+                'print_rewards': True,'save_video': False, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
     
@@ -41,12 +42,11 @@ if __name__ == '__main__':
     learn_steps = 40
     file_name = 'poke_'
     if exists(file_name + '.zip'):
-        print('loading checkpoint')
+        print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
     else:
         model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=2, gamma=0.995)
 
     for i in range(learn_steps):
         model.learn(total_timesteps=ep_length*num_cpu*4)
-        model.save(file_name+str(i))
-
+        model.save(sess_path / Path(file_name+str(i)))
