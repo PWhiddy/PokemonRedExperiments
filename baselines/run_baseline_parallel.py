@@ -26,17 +26,17 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    ep_length = 2048 * 8
+    ep_length = 2048 * 10
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../init.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../fast_text_start.state', 'max_steps': ep_length, 
                 'print_rewards': True,'save_video': False, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
     
-    num_cpu = 64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 56 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     #env_checker.check_env(env)
     learn_steps = 40

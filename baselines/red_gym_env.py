@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+from einops import rearrange
 import matplotlib.pyplot as plt
 from skimage.transform import resize
 from pyboy import PyBoy
@@ -70,11 +71,10 @@ class RedGymEnv(gym.Env):
             WindowEvent.RELEASE_BUTTON_B
         ]
 
-        # TODO split up memory for each reward type
         self.output_shape = (36, 40, 3)
         self.mem_padding = 2
         self.memory_height = 8
-        self.col_steps = 64
+        self.col_steps = 16
         self.output_full = (
             self.output_shape[0] + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
@@ -111,10 +111,17 @@ class RedGymEnv(gym.Env):
         self.knn_index.init_index(
             max_elements=self.num_elements, ef_construction=100, M=16)
 
-        self.recent_memory = np.zeros(self.output_shape[1]*self.memory_height, dtype=np.uint8)
+        self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
 
-        self.run_frames = []
-        self.progress_reward = {}
+        self.run_frames_full = []
+        self.run_frames_model = []
+        self.progress_reward = {
+            'events': 0,
+            'party_xp': 0,
+            'levels': 0,
+            'seen_poke': 0,
+            'explore': 1
+        }
         self.total_reward = 1
         self.step_count = 0
         self.reset_count += 1
@@ -151,11 +158,13 @@ class RedGymEnv(gym.Env):
 
         self.update_frame_knn_index(obs_flat)
 
-        new_reward = self.update_reward()
+        new_reward, new_prog = self.update_reward()
 
-        # shift over short term reward memory 1 slot
-        self.recent_memory = np.roll(self.recent_memory, 1)
-        self.recent_memory[0] = min(new_reward * 8, 255)
+        # shift over short term reward memory
+        self.recent_memory = np.roll(self.recent_memory, 3)
+        self.recent_memory[0, 0] = min(new_prog[0] * 64, 255)
+        self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
+        self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
 
         done = self.check_if_done()
 
@@ -180,7 +189,8 @@ class RedGymEnv(gym.Env):
                 if action == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
             if self.save_video:
-                self.run_frames.append(self.render(reduce_res=False))
+                self.run_frames_full.append(self.render(reduce_res=False))
+                self.run_frames_model.append(self.render(reduce_res=True))
             self.pyboy.tick()
 
     def update_frame_knn_index(self, frame_vec):
@@ -199,33 +209,56 @@ class RedGymEnv(gym.Env):
 
     def update_reward(self):
         # compute reward
+        old_prog = self.group_rewards()
         self.progress_reward = self.get_game_state_reward()
+        new_prog = self.group_rewards()
 
         new_total = sum([val for _, val in self.progress_reward.items()]) #sqrt(self.explore_reward * self.progress_reward)
         new_step = new_total - self.total_reward
         self.total_reward = new_total
-        return new_step
+        return (new_step, 
+                   (new_prog[0]-old_prog[0], 
+                    new_prog[1]-old_prog[1], 
+                    new_prog[2]-old_prog[2])
+               )
+    
+    def group_rewards(self):
+        prog = self.progress_reward
+        return (prog['events'], 
+                prog['levels'] + prog['party_xp'], 
+                prog['explore'] + prog['seen_poke'])
 
     def create_exploration_memory(self):
         w = self.output_shape[1]
         h = self.memory_height
-        total_reward = self.total_reward
-        col_steps = self.col_steps
-        row = floor(total_reward / (h * col_steps))
-        memory = np.zeros(shape=(h, w, 3), dtype=np.uint8)
-        memory[:, :row, :] = 255
-        row_covered = row * h * col_steps
-        col = floor((total_reward - row_covered) / col_steps)
-        memory[:col, row, :] = 255
-        col_covered = col * col_steps
-        last_pixel = floor(total_reward - row_covered - col_covered) 
-        memory[col, row, :] = last_pixel * (255 // col_steps)
-        return memory
+        
+        def make_reward_channel(r_val):
+            col_steps = self.col_steps
+            row = floor(r_val / (h * col_steps))
+            memory = np.zeros(shape=(h, w), dtype=np.uint8)
+            memory[:, :row] = 255
+            row_covered = row * h * col_steps
+            col = floor((r_val - row_covered) / col_steps)
+            memory[:col, row] = 255
+            col_covered = col * col_steps
+            last_pixel = floor(r_val - row_covered - col_covered) 
+            memory[col, row] = last_pixel * (255 // col_steps)
+            return memory
+        
+        event, level, explore = self.group_rewards()
+        full_memory = np.stack((
+            make_reward_channel(event),
+            make_reward_channel(level),
+            make_reward_channel(explore)
+        ), axis=-1)
+
+        return full_memory
 
     def create_recent_memory(self):
-        return np.stack((self.recent_memory.reshape(
-            self.output_shape[1], 
-            self.memory_height).T,)*3, axis=-1)
+        return rearrange(
+            self.recent_memory, 
+            '(w h) c -> h w c', 
+            h=self.memory_height)
 
     def check_if_done(self):
         if self.early_stopping:
@@ -261,14 +294,17 @@ class RedGymEnv(gym.Env):
                     fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg'), 
                     self.render(reduce_res=False))
 
-        if self.save_video and len(self.run_frames) % self.video_interval == 0:
+        if self.save_video and len(self.run_frames_full) % self.video_interval == 0:
             # save frames as video
             base_dir = self.s_path / Path('rollouts')
             base_dir.mkdir(exist_ok=True)
-            out_frames = np.array(self.run_frames)
-            f_path = base_dir / Path(f'run_r_{self.total_reward}_{self.reset_count}_s{self.step_count}').with_suffix('.mp4')
-            media.write_video(f_path, out_frames, fps=60)
-            self.run_frames = []
+            def make_vpath(res):
+                name = f'run_r_{int(self.total_reward)}_{self.reset_count}_s{self.step_count}_{res}'
+                return base_dir / Path(name).with_suffix('.mp4')
+            media.write_video(make_vpath('full'), np.array(self.run_frames_full), fps=60)
+            media.write_video(make_vpath('model'), np.array(self.run_frames_model), fps=60)
+            self.run_frames_full = []
+            self.run_frames_model = []
 
         if done:
             self.all_runs.append(self.progress_reward)
@@ -302,9 +338,9 @@ class RedGymEnv(gym.Env):
         
         state_scores = {
             'events': all_events_score * 100,
-            'seen_poke': seen_poke_count * 100,
             'party_xp': 0.25*sum(poke_xps),
-            'levels': level_sum * 20,
+            'levels': level_sum * 30,
+            'seen_poke': seen_poke_count * 100,
             'explore': self.knn_index.get_current_count()
         }
         
