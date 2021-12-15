@@ -8,14 +8,14 @@ from stable_baselines3.common import env_checker
 
 sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
-run_steps = 1024
+run_steps = 2048
 runs_per_update = 6
 updates_per_checkpoint = 4
 
 env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False, 
-                'action_freq': 24, 'init_state': '../init.state', 'max_steps': run_steps,
-                'print_rewards': True, 'save_video': False, 'session_path': sess_path,
+                'action_freq': 24, 'init_state': '../fast_text_start.state', 'max_steps': run_steps,
+                'print_rewards': True, 'save_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
 
