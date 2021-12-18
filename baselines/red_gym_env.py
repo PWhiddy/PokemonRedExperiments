@@ -299,7 +299,7 @@ class RedGymEnv(gym.Env):
             base_dir = self.s_path / Path('rollouts')
             base_dir.mkdir(exist_ok=True)
             def make_vpath(res):
-                name = f'run_r_{int(self.total_reward)}_{self.reset_count}_s{self.step_count}_{res}'
+                name = f'run_r_{int(self.total_reward)}_{self.reset_count}_s{self.step_count}_id{self.instance_id}_reset{self.reset_count}_{res}'
                 return base_dir / Path(name).with_suffix('.mp4')
             media.write_video(make_vpath('full'), np.array(self.run_frames_full), fps=60)
             media.write_video(make_vpath('model'), np.array(self.run_frames_model), fps=60)
@@ -337,9 +337,9 @@ class RedGymEnv(gym.Env):
             print(f'oak_parcel: {oak_parcel} oak_pokedex: {oak_pokedex} all_events_score: {all_events_score}')
         
         state_scores = {
-            'events': all_events_score * 100,
-            'party_xp': 0.25*sum(poke_xps),
-            'levels': level_sum * 30,
+            'events': all_events_score * 50,
+            'party_xp': 0.15*sum(poke_xps),
+            'levels': level_sum * 65,
             'seen_poke': seen_poke_count * 100,
             'explore': self.knn_index.get_current_count()
         }
