@@ -38,6 +38,7 @@ class RedGymEnv(gym.Env):
         self.save_video = config['save_video']
         self.video_interval = 2048 * self.act_freq
         self.downsample_factor = 4
+        self.frame_stacks = 8
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
@@ -76,7 +77,7 @@ class RedGymEnv(gym.Env):
         self.memory_height = 8
         self.col_steps = 16
         self.output_full = (
-            self.output_shape[0] + 2 * (self.mem_padding + self.memory_height),
+            self.output_shape[0] * self.frame_stacks + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
                             self.output_shape[2]
         )
@@ -112,6 +113,11 @@ class RedGymEnv(gym.Env):
             max_elements=self.num_elements, ef_construction=100, M=16)
 
         self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
+        
+        self.recent_frames = np.zeros(
+            (self.frame_stacks, self.output_shape[0], 
+             self.output_shape[1], self.output_shape[2]),
+            dtype=np.uint8)
 
         self.run_frames_full = []
         self.run_frames_model = []
@@ -131,6 +137,7 @@ class RedGymEnv(gym.Env):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
             game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
+            self.recent_frames[0] = game_pixels_render
             if add_memory:
                 pad = np.zeros(
                     shape=(self.mem_padding, self.output_shape[1], 3), 
@@ -141,20 +148,22 @@ class RedGymEnv(gym.Env):
                         pad,
                         self.create_recent_memory(),
                         pad,
-                        game_pixels_render
+                        rearrange(self.recent_frames, 'f h w c -> (f h) w c')
                     ),
                     axis=0)
         return game_pixels_render
-
+    
     def step(self, action):
 
         self.run_action_on_emulator(action)
 
+        self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
 
         # trim off memory from frame for knn index
+        frame_start = 2 * (self.memory_height + self.mem_padding)
         obs_flat = obs_memory[
-            2 * (self.memory_height + self.mem_padding):, ...].flatten().astype(np.float32)
+            frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
 
         self.update_frame_knn_index(obs_flat)
 

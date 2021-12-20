@@ -45,7 +45,7 @@ if __name__ == '__main__':
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=2, gamma=0.995)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=2048, n_epochs=2, gamma=0.9985)
 
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length+2)*num_cpu*1)
