@@ -37,8 +37,8 @@ class RedGymEnv(gym.Env):
         self.early_stopping = config['early_stop']
         self.save_video = config['save_video']
         self.video_interval = 2048 * self.act_freq
-        self.downsample_factor = 4
-        self.frame_stacks = 8
+        self.downsample_factor = 2
+        self.frame_stacks = 1
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
@@ -47,7 +47,7 @@ class RedGymEnv(gym.Env):
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
-        self.reward_range = (0, 2500)
+        self.reward_range = (0, 15000)
 
         self.valid_actions = [
             WindowEvent.PRESS_ARROW_DOWN,
@@ -75,7 +75,7 @@ class RedGymEnv(gym.Env):
         self.output_shape = (36, 40, 3)
         self.mem_padding = 2
         self.memory_height = 8
-        self.col_steps = 16
+        self.col_steps = 32
         self.output_full = (
             self.output_shape[0] * self.frame_stacks + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
@@ -125,6 +125,7 @@ class RedGymEnv(gym.Env):
             'events': 0,
             'party_xp': 0,
             'levels': 0,
+            'money': 0,
             'seen_poke': 0,
             'explore': 1
         }
@@ -221,9 +222,13 @@ class RedGymEnv(gym.Env):
         old_prog = self.group_rewards()
         self.progress_reward = self.get_game_state_reward()
         new_prog = self.group_rewards()
-
         new_total = sum([val for _, val in self.progress_reward.items()]) #sqrt(self.explore_reward * self.progress_reward)
         new_step = new_total - self.total_reward
+        if new_step < 0:
+            print(f'\n\nreward went down! {self.progress_reward}\n\n')
+            plt.imsave(
+                    self.s_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_neg_reward.jpeg'), 
+                    self.render(reduce_res=False))
         self.total_reward = new_total
         return (new_step, 
                    (new_prog[0]-old_prog[0], 
@@ -233,9 +238,9 @@ class RedGymEnv(gym.Env):
     
     def group_rewards(self):
         prog = self.progress_reward
-        return (prog['events'], 
+        return (prog['events'] + prog['money'] + prog['seen_poke'], 
                 prog['levels'] + prog['party_xp'], 
-                prog['explore'] + prog['seen_poke'])
+                prog['explore'])
 
     def create_exploration_memory(self):
         w = self.output_shape[1]
@@ -329,10 +334,12 @@ class RedGymEnv(gym.Env):
  
     def get_game_state_reward(self, print_stats=False):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
+        # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         num_poke = self.read_m(0xD163)
         poke_levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         level_sum = max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
-        poke_xps = [self.poke_xp(a) for a in [0xD179, 0xD1A5, 0xD1D1, 0xD1FD, 0xD229, 0xD255]]
+        poke_xps = [self.read_triple(a) for a in [0xD179, 0xD1A5, 0xD1D1, 0xD1FD, 0xD229, 0xD255]]
+        money = 0 # self.read_money() - 3175 # subtract starting money
         seen_poke_count = sum([self.bit_count(self.read_m(i)) for i in range(0xD30A, 0xD31D)])
         all_events_score = sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)])
         oak_parcel = self.read_bit(0XD74E, 1) 
@@ -342,22 +349,32 @@ class RedGymEnv(gym.Env):
             print(f'num_poke : {num_poke}')
             print(f'poke_levels : {poke_levels}')
             print(f'poke_xps : {poke_xps}')
+            print(f'money: {money}')
             print(f'seen_poke_count : {seen_poke_count}')
             print(f'oak_parcel: {oak_parcel} oak_pokedex: {oak_pokedex} all_events_score: {all_events_score}')
         
         state_scores = {
-            'events': all_events_score * 50,
+            'events': all_events_score * 150,
             'party_xp': 0.15*sum(poke_xps),
-            'levels': level_sum * 65,
-            'seen_poke': seen_poke_count * 100,
+            'levels': level_sum * 100,
+            'money': money * 3,
+            'seen_poke': seen_poke_count * 200,
             'explore': self.knn_index.get_current_count()
         }
         
-        return state_scores # 0.2*sum(poke_xps) + level_sum * 20 + seen_poke_count * 100 + 1
+        return state_scores
 
     # built-in since python 3.10
     def bit_count(self, bits):
         return bin(bits).count('1')
 
-    def poke_xp(self, start_add):
+    def read_triple(self, start_add):
         return 256*256*self.read_m(start_add) + 256*self.read_m(start_add+1) + self.read_m(start_add+2)
+    
+    def read_bcd(self, num):
+        return 10 * ((num >> 4) & 0x0f) + (num & 0x0f)
+    
+    def read_money(self):
+        return (100 * 100 * self.read_bcd(self.read_m(0xD347)) + 
+                100 * self.read_bcd(self.read_m(0xD348)) +
+                self.read_bcd(self.read_m(0xD349)))

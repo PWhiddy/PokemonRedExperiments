@@ -7,6 +7,7 @@ from stable_baselines3 import A2C, PPO
 from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
+from stable_baselines3.common.callbacks import CheckpointCallback
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -38,6 +39,9 @@ if __name__ == '__main__':
     
     num_cpu = 48 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+    
+    checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
+                                     name_prefix='poke_')
     #env_checker.check_env(env)
     learn_steps = 40
     file_name = 'poke_'
@@ -45,8 +49,7 @@ if __name__ == '__main__':
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=2048, n_epochs=2, gamma=0.9985)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=1024, n_epochs=1, gamma=0.998, ent_coef=0.01)
 
     for i in range(learn_steps):
-        model.learn(total_timesteps=(ep_length+2)*num_cpu*1)
-        model.save(sess_path / Path(file_name+str(i)))
+        model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)
