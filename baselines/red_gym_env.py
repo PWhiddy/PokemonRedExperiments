@@ -354,10 +354,10 @@ class RedGymEnv(gym.Env):
             print(f'oak_parcel: {oak_parcel} oak_pokedex: {oak_pokedex} all_events_score: {all_events_score}')
         
         state_scores = {
-            'events': all_events_score * 150,
+            'events': all_events_score * 25,
             'party_xp': 0.15*sum(poke_xps),
-            'levels': level_sum * 100,
-            'money': money * 3,
+            'levels': level_sum * 65,
+            'money': 0*money * 3,
             'seen_poke': seen_poke_count * 200,
             'explore': self.knn_index.get_current_count()
         }
