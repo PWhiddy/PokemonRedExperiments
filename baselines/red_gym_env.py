@@ -289,8 +289,8 @@ class RedGymEnv(gym.Env):
         if self.print_rewards:
             prog_string = f'step: {self.step_count:6d}'
             for key, val in self.progress_reward.items():
-                prog_string += f' {key}: {val:6.1f}'
-            prog_string += f' sum: {self.total_reward:6.1f}'
+                prog_string += f' {key}: {val:4.0f}'
+            prog_string += f' sum: {self.total_reward:5.0f}'
             print(f'\r{prog_string}', end='', flush=True)
         
         if self.step_count % 50 == 0:
@@ -362,11 +362,11 @@ class RedGymEnv(gym.Env):
         state_scores = {
             'events': all_events_score * 25,
             'party_xp': 0.15*sum(poke_xps),
-            'levels': level_sum * 65,
-            'max_oppo_level': self.max_opponent_level * 100,
-            'max_oppo_poke': (self.max_opponent_poke - 1) * 100,
+            'levels': level_sum * 10,
+            'op_level': self.max_opponent_level * 100,
+            'op_poke': self.max_opponent_poke * 300,
             #'money': money * 3,
-            'seen_poke': seen_poke_count * 200,
+            'seen_poke': seen_poke_count * 100,
             'explore': self.knn_index.get_current_count()
         }
         
