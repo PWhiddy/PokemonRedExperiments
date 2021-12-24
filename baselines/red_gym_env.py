@@ -125,10 +125,12 @@ class RedGymEnv(gym.Env):
             'events': 0,
             'party_xp': 0,
             'levels': 0,
-            'money': 0,
+        #    'money': 0,
             'seen_poke': 0,
             'explore': 1
         }
+        self.max_opponent_level = 2
+        self.max_opponent_poke = 1
         self.total_reward = 1
         self.step_count = 0
         self.reset_count += 1
@@ -238,7 +240,7 @@ class RedGymEnv(gym.Env):
     
     def group_rewards(self):
         prog = self.progress_reward
-        return (prog['events'] + prog['money'] + prog['seen_poke'], 
+        return (prog['events'], 
                 prog['levels'] + prog['party_xp'], 
                 prog['explore'])
 
@@ -339,17 +341,21 @@ class RedGymEnv(gym.Env):
         poke_levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         level_sum = max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
         poke_xps = [self.read_triple(a) for a in [0xD179, 0xD1A5, 0xD1D1, 0xD1FD, 0xD229, 0xD255]]
-        money = 0 # self.read_money() - 3175 # subtract starting money
+        #money = self.read_money() - 975 # subtract starting money
         seen_poke_count = sum([self.bit_count(self.read_m(i)) for i in range(0xD30A, 0xD31D)])
         all_events_score = sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)])
         oak_parcel = self.read_bit(0XD74E, 1) 
         oak_pokedex = self.read_bit(0XD74B, 5)
+        opponent_level = self.read_m(0xCFF3)
+        self.max_opponent_level = max(self.max_opponent_level, opponent_level)
+        enemy_poke_count = self.read_m(0xD89C)
+        self.max_opponent_poke = max(self.max_opponent_poke, enemy_poke_count)
         
         if print_stats:
             print(f'num_poke : {num_poke}')
             print(f'poke_levels : {poke_levels}')
             print(f'poke_xps : {poke_xps}')
-            print(f'money: {money}')
+            #print(f'money: {money}')
             print(f'seen_poke_count : {seen_poke_count}')
             print(f'oak_parcel: {oak_parcel} oak_pokedex: {oak_pokedex} all_events_score: {all_events_score}')
         
@@ -357,7 +363,9 @@ class RedGymEnv(gym.Env):
             'events': all_events_score * 25,
             'party_xp': 0.15*sum(poke_xps),
             'levels': level_sum * 65,
-            'money': 0*money * 3,
+            'max_oppo_level': self.max_opponent_level * 100,
+            'max_oppo_poke': (self.max_opponent_poke - 1) * 100,
+            #'money': money * 3,
             'seen_poke': seen_poke_count * 200,
             'explore': self.knn_index.get_current_count()
         }
