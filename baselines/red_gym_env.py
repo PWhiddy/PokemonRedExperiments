@@ -38,7 +38,7 @@ class RedGymEnv(gym.Env):
         self.save_video = config['save_video']
         self.video_interval = 2048 * self.act_freq
         self.downsample_factor = 2
-        self.frame_stacks = 1
+        self.frame_stacks = 2
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
@@ -75,7 +75,7 @@ class RedGymEnv(gym.Env):
         self.output_shape = (36, 40, 3)
         self.mem_padding = 2
         self.memory_height = 8
-        self.col_steps = 32
+        self.col_steps = 16
         self.output_full = (
             self.output_shape[0] * self.frame_stacks + 2 * (self.mem_padding + self.memory_height),
                             self.output_shape[1],
@@ -240,9 +240,9 @@ class RedGymEnv(gym.Env):
     
     def group_rewards(self):
         prog = self.progress_reward
-        return (prog['events'], 
-                prog['levels'] + prog['party_xp'], 
-                prog['explore'])
+        return (0, 0, prog['explore'])#(prog['events'], 
+               # prog['levels'] + prog['party_xp'], 
+               # prog['explore'])
 
     def create_exploration_memory(self):
         w = self.output_shape[1]
@@ -360,13 +360,13 @@ class RedGymEnv(gym.Env):
             print(f'oak_parcel: {oak_parcel} oak_pokedex: {oak_pokedex} all_events_score: {all_events_score}')
         
         state_scores = {
-            'events': all_events_score * 25,
-            'party_xp': 0.15*sum(poke_xps),
-            'levels': level_sum * 10,
-            'op_level': self.max_opponent_level * 100,
-            'op_poke': self.max_opponent_poke * 300,
+          #  'events': all_events_score * 25,
+          #  'party_xp': 0.1*sum(poke_xps),
+          #  'levels': level_sum * 30,
+            #'op_level': self.max_opponent_level * 100,
+          #  'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
-            'seen_poke': seen_poke_count * 100,
+            #'seen_poke': seen_poke_count * 400,
             'explore': self.knn_index.get_current_count()
         }
         
