@@ -27,12 +27,12 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    ep_length = 2048 * 8
+    ep_length = 2048 * 6
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True,'save_video': False, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
@@ -49,7 +49,7 @@ if __name__ == '__main__':
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=2, gamma=0.996)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.995)
 
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)

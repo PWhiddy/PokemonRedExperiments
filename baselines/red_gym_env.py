@@ -338,7 +338,7 @@ class RedGymEnv(gym.Env):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         num_poke = self.read_m(0xD163)
-        poke_levels = [self.read_m(a) - 1 for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        poke_levels = [max(self.read_m(a) - 1, 0) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         level_sum = max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
         poke_xps = [self.read_triple(a) for a in [0xD179, 0xD1A5, 0xD1D1, 0xD1FD, 0xD229, 0xD255]]
         #money = self.read_money() - 975 # subtract starting money
