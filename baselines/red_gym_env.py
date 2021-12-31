@@ -362,7 +362,7 @@ class RedGymEnv(gym.Env):
         state_scores = {
           #  'events': all_events_score * 25,
           #  'party_xp': 0.1*sum(poke_xps),
-            'levels': level_sum * 20,
+            'levels': level_sum * 40,
             #'op_level': self.max_opponent_level * 100,
           #  'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
