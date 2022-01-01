@@ -240,7 +240,7 @@ class RedGymEnv(gym.Env):
     
     def group_rewards(self):
         prog = self.progress_reward
-        return (prog['levels'], 0, prog['explore'])#(prog['events'], 
+        return (prog['levels'], self.read_hp_fraction()*1000, prog['explore'])#(prog['events'], 
                # prog['levels'] + prog['party_xp'], 
                # prog['explore'])
 
@@ -371,6 +371,14 @@ class RedGymEnv(gym.Env):
         }
         
         return state_scores
+
+    def read_hp_fraction(self):
+        hp_sum = sum([self.read_hp(add) for add in [0xD16C, 0xD198, 0xD1C4, 0xD1F0, 0xD21C, 0xD248]])
+        max_hp_sum = sum([self.read_hp(add) for add in [0xD18D, 0xD1B9, 0xD1E5, 0xD211, 0xD23D, 0xD269]])
+        return hp_sum / max_hp_sum
+
+    def read_hp(self, start):
+        return 256 * self.read_m(start) + self.read_m(start+1)
 
     # built-in since python 3.10
     def bit_count(self, bits):
