@@ -339,13 +339,13 @@ class RedGymEnv(gym.Env):
         return max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
     
     def get_levels_reward(self):
-        explore_thresh = 20
+        explore_thresh = 30
         scale_factor = 10
         level_sum = self.get_levels_sum()
         if level_sum < explore_thresh:
             scaled = level_sum
         else:
-            scaled = (level_sum-explore_thresh) / scale_factor + level_sum
+            scaled = (level_sum-explore_thresh) / scale_factor + explore_thresh
         return scaled
   
     def get_game_state_reward(self, print_stats=False):
