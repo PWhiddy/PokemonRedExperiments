@@ -38,7 +38,7 @@ class RedGymEnv(gym.Env):
         self.save_video = config['save_video']
         self.video_interval = 2048 * self.act_freq
         self.downsample_factor = 2
-        self.frame_stacks = 3
+        self.frame_stacks = 2
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
@@ -127,11 +127,11 @@ class RedGymEnv(gym.Env):
             'levels': 0,
         #    'money': 0,
             'seen_poke': 0,
-            'explore': 1
+            'explore': 0.01
         }
         self.max_opponent_level = 2
         self.max_opponent_poke = 1
-        self.total_reward = 1
+        self.total_reward = 0.01
         self.step_count = 0
         self.reset_count += 1
         return self.render()
@@ -240,7 +240,7 @@ class RedGymEnv(gym.Env):
     
     def group_rewards(self):
         prog = self.progress_reward
-        return (prog['levels'], self.read_hp_fraction()*1000, prog['explore'])#(prog['events'], 
+        return (prog['levels'], self.read_hp_fraction()*2000, prog['explore'])#(prog['events'], 
                # prog['levels'] + prog['party_xp'], 
                # prog['explore'])
 
@@ -289,8 +289,8 @@ class RedGymEnv(gym.Env):
         if self.print_rewards:
             prog_string = f'step: {self.step_count:6d}'
             for key, val in self.progress_reward.items():
-                prog_string += f' {key}: {val:4.0f}'
-            prog_string += f' sum: {self.total_reward:5.0f}'
+                prog_string += f' {key}: {val:2.2f}'
+            prog_string += f' sum: {self.total_reward:3.2f}'
             print(f'\r{prog_string}', end='', flush=True)
         
         if self.step_count % 50 == 0:
@@ -333,19 +333,32 @@ class RedGymEnv(gym.Env):
     def read_bit(self, addr, bit: int) -> bool:
         # add padding so zero will read '0b100000000' instead of '0b0'
         return bin(256 + self.read_m(addr))[-bit-1] == '1'
- 
+    
+    def get_levels_sum(self):
+        poke_levels = [max(self.read_m(a) - 1, 0) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        return max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
+    
+    def get_levels_reward(self):
+        explore_thresh = 20
+        scale_factor = 10
+        level_sum = self.get_levels_sum()
+        if level_sum < explore_thresh:
+            scaled = level_sum
+        else:
+            scaled = (level_sum-explore_thresh) / scale_factor + level_sum
+        return scaled
+  
     def get_game_state_reward(self, print_stats=False):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
+        '''
         num_poke = self.read_m(0xD163)
-        poke_levels = [max(self.read_m(a) - 1, 0) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
-        level_sum = max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
         poke_xps = [self.read_triple(a) for a in [0xD179, 0xD1A5, 0xD1D1, 0xD1FD, 0xD229, 0xD255]]
         #money = self.read_money() - 975 # subtract starting money
         seen_poke_count = sum([self.bit_count(self.read_m(i)) for i in range(0xD30A, 0xD31D)])
         all_events_score = sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)])
-        oak_parcel = self.read_bit(0XD74E, 1) 
-        oak_pokedex = self.read_bit(0XD74B, 5)
+        oak_parcel = self.read_bit(0xD74E, 1) 
+        oak_pokedex = self.read_bit(0xD74B, 5)
         opponent_level = self.read_m(0xCFF3)
         self.max_opponent_level = max(self.max_opponent_level, opponent_level)
         enemy_poke_count = self.read_m(0xD89C)
@@ -358,16 +371,17 @@ class RedGymEnv(gym.Env):
             #print(f'money: {money}')
             print(f'seen_poke_count : {seen_poke_count}')
             print(f'oak_parcel: {oak_parcel} oak_pokedex: {oak_pokedex} all_events_score: {all_events_score}')
+        '''
         
         state_scores = {
           #  'events': all_events_score * 25,
           #  'party_xp': 0.1*sum(poke_xps),
-            'levels': level_sum * 40,
+            'levels': self.get_levels_reward(),
             #'op_level': self.max_opponent_level * 100,
           #  'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
             #'seen_poke': seen_poke_count * 400,
-            'explore': self.knn_index.get_current_count()
+            'explore': self.knn_index.get_current_count() * 0.01
         }
         
         return state_scores
