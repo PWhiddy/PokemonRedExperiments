@@ -27,7 +27,7 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    ep_length = 2048 * 6
+    ep_length = 2048 * 9
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
@@ -49,7 +49,7 @@ if __name__ == '__main__':
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.995)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.996)
 
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)

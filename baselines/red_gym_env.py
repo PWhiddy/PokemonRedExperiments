@@ -240,7 +240,8 @@ class RedGymEnv(gym.Env):
     
     def group_rewards(self):
         prog = self.progress_reward
-        return (prog['levels'], self.read_hp_fraction()*2000, prog['explore'])#(prog['events'], 
+        # these values are only used by memory
+        return (prog['levels'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 100)#(prog['events'], 
                # prog['levels'] + prog['party_xp'], 
                # prog['explore'])
 
@@ -261,10 +262,10 @@ class RedGymEnv(gym.Env):
             memory[col, row] = last_pixel * (255 // col_steps)
             return memory
         
-        event, level, explore = self.group_rewards()
+        level, hp, explore = self.group_rewards()
         full_memory = np.stack((
-            make_reward_channel(event),
             make_reward_channel(level),
+            make_reward_channel(hp),
             make_reward_channel(explore)
         ), axis=-1)
 
@@ -339,7 +340,7 @@ class RedGymEnv(gym.Env):
         return max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
     
     def get_levels_reward(self):
-        explore_thresh = 30
+        explore_thresh = 35
         scale_factor = 10
         level_sum = self.get_levels_sum()
         if level_sum < explore_thresh:
