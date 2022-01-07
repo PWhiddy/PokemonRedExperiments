@@ -12,7 +12,6 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 def make_env(rank, env_conf, seed=0):
     """
     Utility function for multiprocessed env.
-
     :param env_id: (str) the environment ID
     :param num_env: (int) the number of environments you wish to have in subprocesses
     :param seed: (int) the inital seed for RNG
@@ -49,7 +48,7 @@ if __name__ == '__main__':
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.996)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.9975)
 
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)

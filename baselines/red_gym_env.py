@@ -36,7 +36,7 @@ class RedGymEnv(gym.Env):
         self.max_steps = config['max_steps']
         self.early_stopping = config['early_stop']
         self.save_video = config['save_video']
-        self.video_interval = 2048 * self.act_freq
+        self.video_interval = 256 * self.act_freq
         self.downsample_factor = 2
         self.frame_stacks = 2
         self.similar_frame_dist = config['sim_frame_dist']
@@ -119,28 +119,42 @@ class RedGymEnv(gym.Env):
              self.output_shape[1], self.output_shape[2]),
             dtype=np.uint8)
 
-        self.run_frames_full = []
-        self.run_frames_model = []
+        if self.save_video:
+            base_dir = self.s_path / Path('rollouts')
+            base_dir.mkdir(exist_ok=True)
+            full_name = Path(f'full_reset_{self.reset_count}_id{self.instance_id}').with_suffix('.mp4')
+            model_name = Path(f'model_reset_{self.reset_count}_id{self.instance_id}').with_suffix('.mp4')
+            self.full_frame_writer = media.VideoWriter(base_dir / full_name, (144, 160), fps=60)
+            self.full_frame_writer.__enter__()
+            self.model_frame_writer = media.VideoWriter(base_dir / model_name, self.output_full[:2], fps=60)
+            self.model_frame_writer.__enter__()
+        
         self.progress_reward = {
-            'events': 0,
-            'party_xp': 0,
+            'events': self.get_all_events_reward(),
+        #    'party_xp': 0,
             'levels': 0,
+            'healing': 0,
         #    'money': 0,
-            'seen_poke': 0,
-            'explore': 0.01
+        #    'seen_poke': 0,
+            'explore': 0
         }
-        self.max_opponent_level = 2
-        self.max_opponent_poke = 1
-        self.total_reward = 0.01
+        
+        #self.max_opponent_level = 2
+        #self.max_opponent_poke = 1
+        self.last_health = 1
+        self.total_healing_rew = 0
+        self.total_reward = sum([val for _, val in self.progress_reward.items()])
+        self.died_count = 0
         self.step_count = 0
         self.reset_count += 1
         return self.render()
 
-    def render(self, reduce_res=True, add_memory=True):
+    def render(self, reduce_res=True, add_memory=True, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
             game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
-            self.recent_frames[0] = game_pixels_render
+            if update_mem:
+                self.recent_frames[0] = game_pixels_render
             if add_memory:
                 pad = np.zeros(
                     shape=(self.mem_padding, self.output_shape[1], 3), 
@@ -163,14 +177,19 @@ class RedGymEnv(gym.Env):
         self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
 
-        # trim off memory from frame for knn index
-        frame_start = 2 * (self.memory_height + self.mem_padding)
-        obs_flat = obs_memory[
-            frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
+        if self.get_levels_sum() >= 25:
+            # trim off memory from frame for knn index
+            frame_start = 2 * (self.memory_height + self.mem_padding)
+            obs_flat = obs_memory[
+                frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
 
-        self.update_frame_knn_index(obs_flat)
+            self.update_frame_knn_index(obs_flat)
+            
+        self.update_heal_reward()
 
         new_reward, new_prog = self.update_reward()
+        
+        self.last_health = self.read_hp_fraction()
 
         # shift over short term reward memory
         self.recent_memory = np.roll(self.recent_memory, 3)
@@ -201,8 +220,8 @@ class RedGymEnv(gym.Env):
                 if action == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
             if self.save_video:
-                self.run_frames_full.append(self.render(reduce_res=False))
-                self.run_frames_model.append(self.render(reduce_res=True))
+                self.full_frame_writer.add_image(self.render(reduce_res=False, update_mem=False))
+                self.model_frame_writer.add_image(self.render(reduce_res=True, update_mem=False))
             self.pyboy.tick()
 
     def update_frame_knn_index(self, frame_vec):
@@ -284,14 +303,16 @@ class RedGymEnv(gym.Env):
                 done = True
         else:
             done = self.step_count >= self.max_steps
+        #done = self.read_hp_fraction() == 0
         return done
 
     def save_and_print_info(self, done, obs_memory):
         if self.print_rewards:
             prog_string = f'step: {self.step_count:6d}'
             for key, val in self.progress_reward.items():
-                prog_string += f' {key}: {val:2.2f}'
-            prog_string += f' sum: {self.total_reward:3.2f}'
+                prog_string += f' {key}: {val:6.2f}'
+            prog_string += f' died_count: {self.died_count:2.0f}'
+            prog_string += f' sum: {self.total_reward:6.2f}'
             print(f'\r{prog_string}', end='', flush=True)
         
         if self.step_count % 50 == 0:
@@ -311,17 +332,9 @@ class RedGymEnv(gym.Env):
                     fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg'), 
                     self.render(reduce_res=False))
 
-        if self.save_video and len(self.run_frames_full) % self.video_interval == 0:
-            # save frames as video
-            base_dir = self.s_path / Path('rollouts')
-            base_dir.mkdir(exist_ok=True)
-            def make_vpath(res):
-                name = f'run_r_{int(self.total_reward)}_{self.reset_count}_s{self.step_count}_id{self.instance_id}_reset{self.reset_count}_{res}'
-                return base_dir / Path(name).with_suffix('.mp4')
-            media.write_video(make_vpath('full'), np.array(self.run_frames_full), fps=60)
-            media.write_video(make_vpath('model'), np.array(self.run_frames_model), fps=60)
-            self.run_frames_full = []
-            self.run_frames_model = []
+        if self.save_video and done:
+            self.full_frame_writer.close()
+            self.model_frame_writer.close()
 
         if done:
             self.all_runs.append(self.progress_reward)
@@ -341,13 +354,24 @@ class RedGymEnv(gym.Env):
     
     def get_levels_reward(self):
         explore_thresh = 35
-        scale_factor = 10
+        scale_factor = 20
         level_sum = self.get_levels_sum()
         if level_sum < explore_thresh:
             scaled = level_sum
         else:
             scaled = (level_sum-explore_thresh) / scale_factor + explore_thresh
         return scaled
+    
+    def update_heal_reward(self):
+        cur_health = self.read_hp_fraction()
+        if cur_health > self.last_health:
+            if self.last_health > 0:
+                self.total_healing_rew += (cur_health - self.last_health) * 0.25
+            else:
+                self.died_count += 1
+    
+    def get_all_events_reward(self):
+        return sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)]) - 11
   
     def get_game_state_reward(self, print_stats=False):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
@@ -375,9 +399,10 @@ class RedGymEnv(gym.Env):
         '''
         
         state_scores = {
-          #  'events': all_events_score * 25,
+            'events': self.get_all_events_reward(),
           #  'party_xp': 0.1*sum(poke_xps),
             'levels': self.get_levels_reward(),
+            'healing': self.total_healing_rew,
             #'op_level': self.max_opponent_level * 100,
           #  'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
