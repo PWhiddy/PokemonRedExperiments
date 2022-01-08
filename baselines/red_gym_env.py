@@ -38,7 +38,7 @@ class RedGymEnv(gym.Env):
         self.save_video = config['save_video']
         self.video_interval = 256 * self.act_freq
         self.downsample_factor = 2
-        self.frame_stacks = 2
+        self.frame_stacks = 4
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
@@ -177,7 +177,7 @@ class RedGymEnv(gym.Env):
         self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
 
-        if self.get_levels_sum() >= 25:
+        if self.get_levels_sum() >= 0:
             # trim off memory from frame for knn index
             frame_start = 2 * (self.memory_height + self.mem_padding)
             obs_flat = obs_memory[
@@ -366,7 +366,7 @@ class RedGymEnv(gym.Env):
         cur_health = self.read_hp_fraction()
         if cur_health > self.last_health:
             if self.last_health > 0:
-                self.total_healing_rew += (cur_health - self.last_health) * 0.25
+                self.total_healing_rew += (cur_health - self.last_health) * 0.5
             else:
                 self.died_count += 1
     
@@ -407,7 +407,7 @@ class RedGymEnv(gym.Env):
           #  'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
             #'seen_poke': seen_poke_count * 400,
-            'explore': self.knn_index.get_current_count() * 0.01
+            'explore': self.knn_index.get_current_count() * 0.005
         }
         
         return state_scores

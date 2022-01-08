@@ -26,7 +26,7 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    ep_length = 2048 * 9
+    ep_length = 2048 * 7
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
