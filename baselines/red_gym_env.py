@@ -134,12 +134,13 @@ class RedGymEnv(gym.Env):
         #    'party_xp': 0,
             'levels': 0,
             'healing': 0,
+            'max_op_level': 0,
         #    'money': 0,
         #    'seen_poke': 0,
             'explore': 0
         }
         
-        #self.max_opponent_level = 2
+        self.max_opponent_level = 0
         #self.max_opponent_poke = 1
         self.last_health = 1
         self.total_healing_rew = 0
@@ -403,6 +404,7 @@ class RedGymEnv(gym.Env):
           #  'party_xp': 0.1*sum(poke_xps),
             'levels': self.get_levels_reward(),
             'healing': self.total_healing_rew,
+            'max_op_level': self.get_max_op_level(),
             #'op_level': self.max_opponent_level * 100,
           #  'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
@@ -411,6 +413,11 @@ class RedGymEnv(gym.Env):
         }
         
         return state_scores
+    
+    def get_max_op_level(self):
+        opponent_level = self.read_m(0xCFF3) - 5 # base level
+        self.max_opponent_level = max(self.max_opponent_level, opponent_level)
+        return self.max_opponent_level
 
     def read_hp_fraction(self):
         hp_sum = sum([self.read_hp(add) for add in [0xD16C, 0xD198, 0xD1C4, 0xD1F0, 0xD21C, 0xD248]])
