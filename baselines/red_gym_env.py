@@ -38,7 +38,7 @@ class RedGymEnv(gym.Env):
         self.save_video = config['save_video']
         self.video_interval = 256 * self.act_freq
         self.downsample_factor = 2
-        self.frame_stacks = 4
+        self.frame_stacks = 3
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
         self.instance_id = str(uuid.uuid4())[:8]
@@ -203,7 +203,7 @@ class RedGymEnv(gym.Env):
 
         self.step_count += 1
 
-        return obs_memory, new_reward, done, {}
+        return obs_memory, new_reward*0.25, done, {}
 
     def run_action_on_emulator(self, action):
         # press button then release after some steps
@@ -353,7 +353,7 @@ class RedGymEnv(gym.Env):
         return max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
     
     def get_levels_reward(self):
-        explore_thresh = 35
+        explore_thresh = 25
         scale_factor = 20
         level_sum = self.get_levels_sum()
         if level_sum < explore_thresh:
@@ -366,7 +366,7 @@ class RedGymEnv(gym.Env):
         cur_health = self.read_hp_fraction()
         if cur_health > self.last_health:
             if self.last_health > 0:
-                self.total_healing_rew += (cur_health - self.last_health) * 0.5
+                self.total_healing_rew += (cur_health - self.last_health) #* 0.5
             else:
                 self.died_count += 1
     
