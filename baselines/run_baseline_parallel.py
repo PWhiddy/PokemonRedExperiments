@@ -43,7 +43,7 @@ if __name__ == '__main__':
                                      name_prefix='poke_')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = 'session_1eb24946/poke__10027008_steps'
+    file_name = 'poke'
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)

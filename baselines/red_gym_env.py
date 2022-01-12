@@ -247,10 +247,9 @@ class RedGymEnv(gym.Env):
         new_total = sum([val for _, val in self.progress_reward.items()]) #sqrt(self.explore_reward * self.progress_reward)
         new_step = new_total - self.total_reward
         if new_step < 0:
-            print(f'\n\nreward went down! {self.progress_reward}\n\n')
-            plt.imsave(
-                    self.s_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_neg_reward.jpeg'), 
-                    self.render(reduce_res=False))
+            #print(f'\n\nreward went down! {self.progress_reward}\n\n')
+            self.save_screenshot('neg_reward')
+            
         self.total_reward = new_total
         return (new_step, 
                    (new_prog[0]-old_prog[0], 
@@ -311,9 +310,8 @@ class RedGymEnv(gym.Env):
         if self.print_rewards:
             prog_string = f'step: {self.step_count:6d}'
             for key, val in self.progress_reward.items():
-                prog_string += f' {key}: {val:6.2f}'
-            prog_string += f' died_count: {self.died_count:2.0f}'
-            prog_string += f' sum: {self.total_reward:6.2f}'
+                prog_string += f' {key}: {val:5.2f}'
+            prog_string += f' sum: {self.total_reward:5.2f}'
             print(f'\r{prog_string}', end='', flush=True)
         
         if self.step_count % 50 == 0:
@@ -350,8 +348,8 @@ class RedGymEnv(gym.Env):
         return bin(256 + self.read_m(addr))[-bit-1] == '1'
     
     def get_levels_sum(self):
-        poke_levels = [max(self.read_m(a) - 1, 0) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
-        return max(sum(poke_levels) - 5, 0) # subtract starting pokemon level
+        poke_levels = [max(self.read_m(a) - 2, 0) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        return max(sum(poke_levels) - 4, 0) # subtract starting pokemon level
     
     def get_levels_reward(self):
         explore_thresh = 25
@@ -367,12 +365,16 @@ class RedGymEnv(gym.Env):
         cur_health = self.read_hp_fraction()
         if cur_health > self.last_health:
             if self.last_health > 0:
-                self.total_healing_rew += (cur_health - self.last_health) #* 0.5
+                heal_amount = cur_health - self.last_health
+                self.total_healing_rew += heal_amount
+                if heal_amount > 0.5:
+                    print(f'healed: {heal_amount}')
+                    self.save_screenshot('healing')
             else:
                 self.died_count += 1
     
     def get_all_events_reward(self):
-        return sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)]) - 11
+        return max(sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)]) - 13, 0)
   
     def get_game_state_reward(self, print_stats=False):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
@@ -405,6 +407,7 @@ class RedGymEnv(gym.Env):
             'levels': self.get_levels_reward(),
             'healing': self.total_healing_rew,
             'max_op_level': self.get_max_op_level(),
+            'deaths': -1*self.died_count,
             #'op_level': self.max_opponent_level * 100,
           #  'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
@@ -414,8 +417,18 @@ class RedGymEnv(gym.Env):
         
         return state_scores
     
+    def save_screenshot(self, name):
+        ss_dir = self.s_path / Path('screenshots')
+        ss_dir.mkdir(exist_ok=True)
+        plt.imsave(
+            ss_dir / Path(f'frame{self.instance_id}_r{self.total_reward:.4f}_{self.reset_count}_{name}.jpeg'), 
+            self.render(reduce_res=False))
+    
     def get_max_op_level(self):
-        opponent_level = self.read_m(0xCFF3) - 5 # base level
+        #opponent_level = self.read_m(0xCFE8) - 5 # base level
+        opponent_level = max([self.read_m(a) for a in [0xD8C5, 0xD8F1, 0xD91D, 0xD949, 0xD975, 0xD9A1]]) - 5
+        if opponent_level >= 7:
+            self.save_screenshot('highlevelop')
         self.max_opponent_level = max(self.max_opponent_level, opponent_level)
         return self.max_opponent_level
 
