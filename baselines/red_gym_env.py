@@ -128,25 +128,16 @@ class RedGymEnv(gym.Env):
             self.full_frame_writer.__enter__()
             self.model_frame_writer = media.VideoWriter(base_dir / model_name, self.output_full[:2], fps=60)
             self.model_frame_writer.__enter__()
-        
-        self.progress_reward = {
-            'events': self.get_all_events_reward(),
-        #    'party_xp': 0,
-            'levels': 0,
-            'healing': 0,
-            'max_op_level': 0,
-        #    'money': 0,
-        #    'seen_poke': 0,
-            'explore': 0
-        }
-        
+       
+
         self.max_opponent_level = 0
         #self.max_opponent_poke = 1
         self.last_health = 1
         self.total_healing_rew = 0
-        self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.died_count = 0
         self.step_count = 0
+        self.progress_reward = self.get_game_state_reward()
+        self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         return self.render()
 
@@ -178,13 +169,12 @@ class RedGymEnv(gym.Env):
         self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
 
-        if self.get_levels_sum() >= 0:
-            # trim off memory from frame for knn index
-            frame_start = 2 * (self.memory_height + self.mem_padding)
-            obs_flat = obs_memory[
-                frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
+        # trim off memory from frame for knn index
+        frame_start = 2 * (self.memory_height + self.mem_padding)
+        obs_flat = obs_memory[
+            frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
 
-            self.update_frame_knn_index(obs_flat)
+        self.update_frame_knn_index(obs_flat)
             
         self.update_heal_reward()
 
@@ -204,7 +194,7 @@ class RedGymEnv(gym.Env):
 
         self.step_count += 1
 
-        return obs_memory, new_reward*0.25, done, {}
+        return obs_memory, new_reward*0.1, done, {}
 
     def run_action_on_emulator(self, action):
         # press button then release after some steps
@@ -352,7 +342,7 @@ class RedGymEnv(gym.Env):
         return max(sum(poke_levels) - 4, 0) # subtract starting pokemon level
     
     def get_levels_reward(self):
-        explore_thresh = 25
+        explore_thresh = 22
         scale_factor = 20
         level_sum = self.get_levels_sum()
         if level_sum < explore_thresh:
@@ -403,16 +393,16 @@ class RedGymEnv(gym.Env):
         
         state_scores = {
             'events': self.get_all_events_reward(),
-          #  'party_xp': 0.1*sum(poke_xps),
+            #'party_xp': 0.1*sum(poke_xps),
             'levels': self.get_levels_reward(),
             'healing': self.total_healing_rew,
             'max_op_level': self.get_max_op_level(),
             'deaths': -1*self.died_count,
             #'op_level': self.max_opponent_level * 100,
-          #  'op_poke': self.max_opponent_poke * 800,
+            #'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
             #'seen_poke': seen_poke_count * 400,
-            'explore': self.knn_index.get_current_count() * 0.005
+            'explore': self.knn_index.get_current_count() * 0.01
         }
         
         return state_scores
