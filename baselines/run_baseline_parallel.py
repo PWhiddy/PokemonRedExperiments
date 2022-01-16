@@ -26,7 +26,7 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    ep_length = 2048 * 6
+    ep_length = 2048 * 7
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
@@ -36,19 +36,24 @@ if __name__ == '__main__':
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
     
-    num_cpu = 48 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 56 #42 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='poke')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = 'poke'
+    file_name = 'poke' #'session_80f70ab4/poke_124256256_steps'
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
+        model.n_steps = ep_length
+        model.n_envs = num_cpu
+        model.rollout_buffer.buffer_size = ep_length
+        model.rollout_buffer.n_envs = num_cpu
+        model.rollout_buffer.reset()
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.998)
-
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
+    
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)

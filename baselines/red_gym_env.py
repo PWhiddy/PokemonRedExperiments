@@ -250,7 +250,7 @@ class RedGymEnv(gym.Env):
     def group_rewards(self):
         prog = self.progress_reward
         # these values are only used by memory
-        return (prog['levels'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 100)#(prog['events'], 
+        return (prog['levels'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 200)#(prog['events'], 
                # prog['levels'] + prog['party_xp'], 
                # prog['explore'])
 
@@ -356,10 +356,10 @@ class RedGymEnv(gym.Env):
         if cur_health > self.last_health:
             if self.last_health > 0:
                 heal_amount = cur_health - self.last_health
-                self.total_healing_rew += heal_amount
                 if heal_amount > 0.5:
                     print(f'healed: {heal_amount}')
                     self.save_screenshot('healing')
+                self.total_healing_rew += heal_amount * 4
             else:
                 self.died_count += 1
     
@@ -397,12 +397,12 @@ class RedGymEnv(gym.Env):
             'levels': self.get_levels_reward(),
             'healing': self.total_healing_rew,
             'max_op_level': self.get_max_op_level(),
-            'deaths': -1*self.died_count,
+            'deaths': -0.5*self.died_count,
             #'op_level': self.max_opponent_level * 100,
             #'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
             #'seen_poke': seen_poke_count * 400,
-            'explore': self.knn_index.get_current_count() * 0.01
+            'explore': self.knn_index.get_current_count() * 0.004
         }
         
         return state_scores
