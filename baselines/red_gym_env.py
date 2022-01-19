@@ -36,6 +36,7 @@ class RedGymEnv(gym.Env):
         self.max_steps = config['max_steps']
         self.early_stopping = config['early_stop']
         self.save_video = config['save_video']
+        self.fast_video = config['fast_video']
         self.video_interval = 256 * self.act_freq
         self.downsample_factor = 2
         self.frame_stacks = 3
@@ -106,11 +107,7 @@ class RedGymEnv(gym.Env):
         with open(self.init_state, "rb") as f:
             self.pyboy.load_state(f)
 
-        # Declaring index
-        self.knn_index = hnswlib.Index(space='l2', dim=self.vec_dim) # possible options are l2, cosine or ip
-        # Initing index - the maximum number of elements should be known beforehand
-        self.knn_index.init_index(
-            max_elements=self.num_elements, ef_construction=100, M=16)
+        self.init_knn()
 
         self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
         
@@ -129,8 +126,10 @@ class RedGymEnv(gym.Env):
             self.model_frame_writer = media.VideoWriter(base_dir / model_name, self.output_full[:2], fps=60)
             self.model_frame_writer.__enter__()
        
-
+        self.levels_satisfied = False
+        self.base_explore = 0
         self.max_opponent_level = 0
+        self.max_event_rew = 0
         #self.max_opponent_poke = 1
         self.last_health = 1
         self.total_healing_rew = 0
@@ -140,6 +139,13 @@ class RedGymEnv(gym.Env):
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
         return self.render()
+    
+    def init_knn(self):
+        # Declaring index
+        self.knn_index = hnswlib.Index(space='l2', dim=self.vec_dim) # possible options are l2, cosine or ip
+        # Initing index - the maximum number of elements should be known beforehand
+        self.knn_index.init_index(
+            max_elements=self.num_elements, ef_construction=100, M=16)
 
     def render(self, reduce_res=True, add_memory=True, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
@@ -210,12 +216,23 @@ class RedGymEnv(gym.Env):
                     self.pyboy.send_input(self.release_button[action - 4])
                 if action == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
-            if self.save_video:
-                self.full_frame_writer.add_image(self.render(reduce_res=False, update_mem=False))
-                self.model_frame_writer.add_image(self.render(reduce_res=True, update_mem=False))
+            if self.save_video and not self.fast_video:
+                self.add_video_frame()
             self.pyboy.tick()
+        if self.save_video and self.fast_video:
+            self.add_video_frame()
+    
+    def add_video_frame(self):
+        self.full_frame_writer.add_image(self.render(reduce_res=False, update_mem=False))
+        self.model_frame_writer.add_image(self.render(reduce_res=True, update_mem=False))
 
     def update_frame_knn_index(self, frame_vec):
+        
+        if self.get_levels_sum() >= 22 and not self.levels_satisfied:
+            self.levels_satisfied = True
+            self.base_explore = self.knn_index.get_current_count()
+            self.init_knn()
+
         if self.knn_index.get_current_count() == 0:
             # if index is empty add current frame
             self.knn_index.add_items(
@@ -236,7 +253,7 @@ class RedGymEnv(gym.Env):
         new_prog = self.group_rewards()
         new_total = sum([val for _, val in self.progress_reward.items()]) #sqrt(self.explore_reward * self.progress_reward)
         new_step = new_total - self.total_reward
-        if new_step < 0:
+        if new_step < 0 and self.read_hp_fraction() > 0:
             #print(f'\n\nreward went down! {self.progress_reward}\n\n')
             self.save_screenshot('neg_reward')
             
@@ -351,6 +368,14 @@ class RedGymEnv(gym.Env):
             scaled = (level_sum-explore_thresh) / scale_factor + explore_thresh
         return scaled
     
+    def get_knn_reward(self):
+        pre_rew = 0.004
+        post_rew = 0.01
+        cur_size = self.knn_index.get_current_count()
+        base = (self.base_explore if self.levels_satisfied else cur_size) * pre_rew
+        post = (cur_size if self.levels_satisfied else 0) * post_rew
+        return base + post
+    
     def update_heal_reward(self):
         cur_health = self.read_hp_fraction()
         if cur_health > self.last_health:
@@ -392,17 +417,17 @@ class RedGymEnv(gym.Env):
         '''
         
         state_scores = {
-            'events': self.get_all_events_reward(),
+            'events': self.update_max_event_rew(),  
             #'party_xp': 0.1*sum(poke_xps),
-            'levels': self.get_levels_reward(),
+            'levels': self.get_levels_reward(), 
             'healing': self.total_healing_rew,
-            'max_op_level': self.get_max_op_level(),
+            'max_op_level': self.update_max_op_level(),
             'deaths': -0.5*self.died_count,
             #'op_level': self.max_opponent_level * 100,
             #'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
             #'seen_poke': seen_poke_count * 400,
-            'explore': self.knn_index.get_current_count() * 0.004
+            'explore': self.get_knn_reward()
         }
         
         return state_scores
@@ -414,13 +439,18 @@ class RedGymEnv(gym.Env):
             ss_dir / Path(f'frame{self.instance_id}_r{self.total_reward:.4f}_{self.reset_count}_{name}.jpeg'), 
             self.render(reduce_res=False))
     
-    def get_max_op_level(self):
+    def update_max_op_level(self):
         #opponent_level = self.read_m(0xCFE8) - 5 # base level
         opponent_level = max([self.read_m(a) for a in [0xD8C5, 0xD8F1, 0xD91D, 0xD949, 0xD975, 0xD9A1]]) - 5
         if opponent_level >= 7:
             self.save_screenshot('highlevelop')
         self.max_opponent_level = max(self.max_opponent_level, opponent_level)
-        return self.max_opponent_level
+        return self.max_opponent_level * 0.4
+    
+    def update_max_event_rew(self):
+        cur_rew = self.get_all_events_reward()
+        self.max_event_rew = max(cur_rew, self.max_event_rew)
+        return self.max_event_rew
 
     def read_hp_fraction(self):
         hp_sum = sum([self.read_hp(add) for add in [0xD16C, 0xD198, 0xD1C4, 0xD1F0, 0xD21C, 0xD248]])
