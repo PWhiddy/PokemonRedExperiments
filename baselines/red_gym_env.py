@@ -363,7 +363,7 @@ class RedGymEnv(gym.Env):
     
     def get_levels_reward(self):
         explore_thresh = 22
-        scale_factor = 20
+        scale_factor = 4
         level_sum = self.get_levels_sum()
         if level_sum < explore_thresh:
             scaled = level_sum
@@ -428,7 +428,7 @@ class RedGymEnv(gym.Env):
             'level': self.get_levels_reward(), 
             'heal': self.total_healing_rew,
             'op_lvl': self.update_max_op_level(),
-            'dead': -0.5*self.died_count,
+            'dead': -0.01*self.died_count,
             'badge': self.get_badges() * 2,
             #'op_level': self.max_opponent_level * 100,
             #'op_poke': self.max_opponent_poke * 800,
