@@ -267,7 +267,7 @@ class RedGymEnv(gym.Env):
     def group_rewards(self):
         prog = self.progress_reward
         # these values are only used by memory
-        return (prog['levels'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 200)#(prog['events'], 
+        return (prog['level'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 200)#(prog['events'], 
                # prog['levels'] + prog['party_xp'], 
                # prog['explore'])
 
@@ -294,6 +294,9 @@ class RedGymEnv(gym.Env):
             make_reward_channel(hp),
             make_reward_channel(explore)
         ), axis=-1)
+        
+        if self.get_badges() > 0:
+            full_memory[:, -1, :] = 255
 
         return full_memory
 
@@ -376,6 +379,9 @@ class RedGymEnv(gym.Env):
         post = (cur_size if self.levels_satisfied else 0) * post_rew
         return base + post
     
+    def get_badges(self):
+        return self.bit_count(self.read_m(0xD356))
+    
     def update_heal_reward(self):
         cur_health = self.read_hp_fraction()
         if cur_health > self.last_health:
@@ -417,12 +423,13 @@ class RedGymEnv(gym.Env):
         '''
         
         state_scores = {
-            'events': self.update_max_event_rew(),  
+            'event': self.update_max_event_rew(),  
             #'party_xp': 0.1*sum(poke_xps),
-            'levels': self.get_levels_reward(), 
-            'healing': self.total_healing_rew,
-            'max_op_level': self.update_max_op_level(),
-            'deaths': -0.5*self.died_count,
+            'level': self.get_levels_reward(), 
+            'heal': self.total_healing_rew,
+            'op_lvl': self.update_max_op_level(),
+            'dead': -0.5*self.died_count,
+            'badge': self.get_badges() * 2,
             #'op_level': self.max_opponent_level * 100,
             #'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
@@ -442,10 +449,10 @@ class RedGymEnv(gym.Env):
     def update_max_op_level(self):
         #opponent_level = self.read_m(0xCFE8) - 5 # base level
         opponent_level = max([self.read_m(a) for a in [0xD8C5, 0xD8F1, 0xD91D, 0xD949, 0xD975, 0xD9A1]]) - 5
-        if opponent_level >= 7:
-            self.save_screenshot('highlevelop')
+        #if opponent_level >= 7:
+        #    self.save_screenshot('highlevelop')
         self.max_opponent_level = max(self.max_opponent_level, opponent_level)
-        return self.max_opponent_level * 0.4
+        return self.max_opponent_level * 0.2
     
     def update_max_event_rew(self):
         cur_rew = self.get_all_events_reward()

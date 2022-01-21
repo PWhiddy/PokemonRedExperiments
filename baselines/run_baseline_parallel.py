@@ -26,7 +26,7 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    ep_length = 2048 * 7
+    ep_length = 2048 * 8
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
@@ -36,14 +36,14 @@ if __name__ == '__main__':
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
     
-    num_cpu = 52 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 44 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='poke')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = 'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
+    file_name = 'session_d3033abb/poke_47579136_steps' #'session_a17cc1f5/poke_33546240_steps' #'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
