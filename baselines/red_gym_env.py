@@ -116,6 +116,8 @@ class RedGymEnv(gym.Env):
              self.output_shape[1], self.output_shape[2]),
             dtype=np.uint8)
 
+        self.agent_stats = []
+        
         if self.save_video:
             base_dir = self.s_path / Path('rollouts')
             base_dir.mkdir(exist_ok=True)
@@ -171,6 +173,7 @@ class RedGymEnv(gym.Env):
     def step(self, action):
 
         self.run_action_on_emulator(action)
+        self.append_agent_stats()
 
         self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
@@ -225,6 +228,20 @@ class RedGymEnv(gym.Env):
     def add_video_frame(self):
         self.full_frame_writer.add_image(self.render(reduce_res=False, update_mem=False))
         self.model_frame_writer.add_image(self.render(reduce_res=True, update_mem=False))
+    
+    def append_agent_stats(self):
+        x_pos = self.read_m(0xD362)
+        y_pos = self.read_m(0xD361)
+        map_n = self.read_m(0xD35E)
+        levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        self.agent_stats.append({
+            'x': x_pos, 'y': y_pos, 'map': map_n, 
+            'pcount': self.read_m(0xD163), 'levels': levels, 'ptypes': self.read_party(),
+            'hp': self.read_hp_fraction(),
+            'frames': self.knn_index.get_current_count(),
+            'deaths': self.died_count, 'badge': self.get_badges(),
+            'event': self.progress_reward['event'], 'healr': self.total_healing_rew
+        })
 
     def update_frame_knn_index(self, frame_vec):
         
@@ -349,6 +366,9 @@ class RedGymEnv(gym.Env):
             self.all_runs.append(self.progress_reward)
             with open(self.s_path / Path(f'all_runs_{self.instance_id}.json'), 'w') as f:
                 json.dump(self.all_runs, f)
+            with open(self.s_path / Path(f'agent_stats_{self.instance_id}.json'), 'a') as f:
+                json.dump(self.agent_stats, f)
+                f.write('\n')
     
     def read_m(self, addr):
         return self.pyboy.get_memory_value(addr)
@@ -381,6 +401,9 @@ class RedGymEnv(gym.Env):
     
     def get_badges(self):
         return self.bit_count(self.read_m(0xD356))
+
+    def read_party(self):
+        return [self.read_m(addr) for addr in [0xD164, 0xD165, 0xD166, 0xD167, 0xD168, 0xD169]]
     
     def update_heal_reward(self):
         cur_health = self.read_hp_fraction()

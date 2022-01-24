@@ -32,7 +32,7 @@ if __name__ == '__main__':
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
-                'print_rewards': True,'save_video': False, 'fast_video': True, 'session_path': sess_path,
+                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
     
@@ -43,7 +43,9 @@ if __name__ == '__main__':
                                      name_prefix='poke')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = 'session_bfdca25a/poke_42532864_steps' #'session_d3033abb/poke_47579136_steps' #'session_a17cc1f5/poke_33546240_steps' #'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
+    file_name = 'poke'
+    
+    #'session_bfdca25a/poke_42532864_steps' #'session_d3033abb/poke_47579136_steps' #'session_a17cc1f5/poke_33546240_steps' #'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
