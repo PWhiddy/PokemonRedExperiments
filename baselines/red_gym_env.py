@@ -13,6 +13,7 @@ from skimage.transform import resize
 from pyboy import PyBoy
 import hnswlib
 import mediapy as media
+import pandas as pd
 
 import gym
 from gym import spaces
@@ -235,7 +236,7 @@ class RedGymEnv(gym.Env):
         map_n = self.read_m(0xD35E)
         levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         self.agent_stats.append({
-            'x': x_pos, 'y': y_pos, 'map': map_n, 
+            'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n, 
             'pcount': self.read_m(0xD163), 'levels': levels, 'ptypes': self.read_party(),
             'hp': self.read_hp_fraction(),
             'frames': self.knn_index.get_current_count(),
@@ -366,9 +367,8 @@ class RedGymEnv(gym.Env):
             self.all_runs.append(self.progress_reward)
             with open(self.s_path / Path(f'all_runs_{self.instance_id}.json'), 'w') as f:
                 json.dump(self.all_runs, f)
-            with open(self.s_path / Path(f'agent_stats_{self.instance_id}.json'), 'a') as f:
-                json.dump(self.agent_stats, f)
-                f.write('\n')
+            pd.DataFrame(self.agent_stats).to_csv(
+                self.s_path / Path(f'agent_stats_{self.instance_id}.csv.gz'), compression='gzip', mode='a')
     
     def read_m(self, addr):
         return self.pyboy.get_memory_value(addr)
