@@ -133,7 +133,7 @@ class RedGymEnv(gym.Env):
         self.base_explore = 0
         self.max_opponent_level = 0
         self.max_event_rew = 0
-        #self.max_opponent_poke = 1
+        self.max_level_rew = 0
         self.last_health = 1
         self.total_healing_rew = 0
         self.died_count = 0
@@ -285,7 +285,7 @@ class RedGymEnv(gym.Env):
     def group_rewards(self):
         prog = self.progress_reward
         # these values are only used by memory
-        return (prog['level'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 200)#(prog['events'], 
+        return (prog['level'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 160)#(prog['events'], 
                # prog['levels'] + prog['party_xp'], 
                # prog['explore'])
 
@@ -389,7 +389,8 @@ class RedGymEnv(gym.Env):
             scaled = level_sum
         else:
             scaled = (level_sum-explore_thresh) / scale_factor + explore_thresh
-        return scaled
+        self.max_level_rew = max(self.max_level_rew, scaled)
+        return self.max_level_rew
     
     def get_knn_reward(self):
         pre_rew = 0.004
@@ -451,9 +452,8 @@ class RedGymEnv(gym.Env):
             'level': self.get_levels_reward(), 
             'heal': self.total_healing_rew,
             'op_lvl': self.update_max_op_level(),
-            'dead': -0.01*self.died_count,
+            'dead': -0.1*self.died_count,
             'badge': self.get_badges() * 2,
-            #'op_level': self.max_opponent_level * 100,
             #'op_poke': self.max_opponent_poke * 800,
             #'money': money * 3,
             #'seen_poke': seen_poke_count * 400,
