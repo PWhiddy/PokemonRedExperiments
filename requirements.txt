@@ -4,4 +4,4 @@ einops
 hnswlib
 numpy
 pyboy
-mediapy
+git+https://github.com/PWhiddy/mediapy.git
