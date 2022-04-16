@@ -98,7 +98,7 @@ def blend_overlay(background, over):
 def split(img):
     return img
 
-def render_video(fname, all_coords, walks, bg, inter_steps=4):
+def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
     debug = False
     errors = []
     sprites_rendered = 0
@@ -108,10 +108,15 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4):
     ) as wr:
         step_count = len(all_coords)
         state = [{'dir': 0, 'map': 40} for _ in all_coords[0]]
-        pbar = tqdm(range(1, step_count))
+        pbar = tqdm(range(0, step_count))
         for idx in pbar:
             step = all_coords[idx]
-            prev_step = all_coords[idx-1]
+            if idx > 0:
+                prev_step = all_coords[idx-1]
+            elif add_start:
+                prev_step = np.tile(np.array([5, 3, 40]), (all_coords.shape[1], 1))
+            else:
+                prev_step = all_coords[idx]
             if debug:
                 print('-- step --')
             for fract in np.arange(0,1,1/inter_steps):
