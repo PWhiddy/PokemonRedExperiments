@@ -153,7 +153,7 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
                         px, -py, prev[2], over.shape[0]
                     )
                     diff = p_coord - prev_p_coord
-                    interp_coord = prev_p_coord + (fract*(diff.astype(np.float))).astype(np.int)
+                    interp_coord = prev_p_coord + (fract*(diff.astype(np.float32))).astype(np.int32)
                     if np.linalg.norm(diff) > 16:
                         continue
                     error = add_sprite(
