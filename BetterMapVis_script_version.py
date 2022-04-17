@@ -9,7 +9,6 @@ import io
 import json
 from tqdm import tqdm
 import mediapy as media
-import jax
 import numpy as np
 
 
@@ -170,6 +169,7 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
     return errors
 
 def test_render(name, dat, walks, bg):
+    print(f'processing chunk with shape {dat.shape}')
     return render_video(
         name,
         dat,
@@ -179,7 +179,7 @@ def test_render(name, dat, walks, bg):
 
 if __name__ == '__main__':
     
-    run_dir = Path('baselines/mini_agent_stats') # Path('baselines/session_ebdfe818')
+    run_dir = Path('baselines/session_4da05e87') # Path('baselines/session_ebdfe818')
 # original session_e41c9eff, main session_4da05e87, extra session_e1b6d2dc
     
     coords_save_pth = Path('base_coords.npz')
@@ -197,7 +197,9 @@ if __name__ == '__main__':
         base_coords = make_all_coords_arrays(dfs)
         print(f'saving {coords_save_pth}')
         np.savez_compressed(coords_save_pth, base_coords)
-        
+    
+    print(f'initial data shape: {base_coords.shape}')
+
     main_map = np.array(Image.open('poke_map/pokemap_full_calibrated_CROPPED_1.png'))
     chars_img = np.array(Image.open('poke_map/characters.png'))
     alpha_val = get_sprite_by_coords(chars_img, 1, 0)[0,0]
@@ -205,14 +207,15 @@ if __name__ == '__main__':
         
     start_bg = main_map.copy()
 
-    procs = 4
+    procs = 16
     with Pool(procs) as p:
         run_steps = 16385
-        base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)[0:5]
+        base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
         print(f'base_data shape: {base_data.shape}')
-        runs = base_data.shape[1]
+        runs = base_data.shape[0] #base_data.shape[1]
         chunk_size = runs // procs
         all_render_errors = p.starmap(
             test_render, 
-            [(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
+            #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
+            [(f'test_run_p{i}', base_data[chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
     
