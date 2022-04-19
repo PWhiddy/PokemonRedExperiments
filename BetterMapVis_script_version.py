@@ -217,5 +217,5 @@ if __name__ == '__main__':
         all_render_errors = p.starmap(
             test_render, 
             #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
-            [(f'test_run_p{i}', base_data[chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
+            [(f'vids_run1/test_run_p{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], walks, start_bg) for i in range(procs)])
     
