@@ -1,4 +1,5 @@
 import sys
+import stat
 import subprocess
 from pathlib import Path
 
@@ -9,9 +10,10 @@ def run_ffmpeg_grid(out_path, files, screen_res_str, full_res_string, gx, gy, sh
     cmd = ['ffmpeg']
     for file in files:
         cmd.append("-i")
-        cmd.append(str(file))
+        cmd.append(str(file.resolve()))
     cmd.append("-filter_complex")
-    fltr = "" #fltr = '"'
+    fltr = ""
+    fltr = '"'
     for idx, file in enumerate(files):
         fltr += f"[{idx}:v] setpts=PTS-STARTPTS, scale={screen_res_str} [a{idx}]; "
 
@@ -32,7 +34,7 @@ def run_ffmpeg_grid(out_path, files, screen_res_str, full_res_string, gx, gy, sh
             layout.append(f"{cur_x}_{cur_y}")
     fltr += "|".join(layout)
     fltr += "[out]"
-    #fltr += '" '
+    fltr += '" '
     cmd.append(fltr)
     cmd.append("-map")
     cmd.append("[out]")
@@ -41,20 +43,36 @@ def run_ffmpeg_grid(out_path, files, screen_res_str, full_res_string, gx, gy, sh
     if short_test:
         cmd.append("-t")
         cmd.append("10")
-    cmd.append(str(out_path))
+    cmd.append(str(out_path.resolve()))
     
     #-f matroska -
     
-    proc = subprocess.Popen(cmd)
+    #proc = subprocess.Popen(cmd)
+    '''
     while True:
         line = proc.stdout.readline()
         if not line: break
         print(line)
+    '''
     
-    #print(' '.join(cmd))
-
-if __name__ == "__main__":
-    sess_dir = Path(sys.argv[1])
+    return ' '.join(cmd)
+              
+def make_script(path):
+    sess_dir = path
+    print(f"generating grid script for {sess_dir.name}")
     rollout_dir = sess_dir / "rollouts"
     all_files = list(rollout_dir.glob("full_reset_1*.mp4"))
-    run_ffmpeg_grid((sess_dir / sess_dir.name).with_suffix('.mp4'), all_files, "160x144", "1280x720", 8, 5, short_test=False)
+    return run_ffmpeg_grid(
+        (sess_dir / sess_dir.name).with_suffix('.mp4'), all_files, 
+        "160x144", "1280x720", 8, 5, short_test=False)
+
+if __name__ == "__main__":
+    outer_dir = Path(sys.argv[1])
+    all_sessions = list(outer_dir.glob("session_*"))
+    scripts = [make_script(sess) for sess in all_sessions]
+    for script, sess in zip(scripts, all_sessions):
+        out_file = Path(outer_dir / Path("parallel_scripts") / sess.with_suffix('.sh').name)
+        with open(out_file, 'w') as f:
+            print(f'writing to {f}')
+            print(script, file=f)
+        out_file.chmod(out_file.stat().st_mode | stat.S_IEXEC)
