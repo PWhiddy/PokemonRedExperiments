@@ -36,7 +36,7 @@ if __name__ == '__main__':
             }
     
     num_cpu = 1 #64 #46  # Also sets the number of episodes per training iteration
-    env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+    env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
     file_name = 'session_4da05e87_main_good/poke_439746560_steps'#'session_e41c9eff/poke_38207488_steps' #'session_e41c9eff/poke_250871808_steps'
