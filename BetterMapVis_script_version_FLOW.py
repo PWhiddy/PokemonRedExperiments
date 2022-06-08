@@ -146,7 +146,7 @@ def compute_flow(fname, all_coords, bg, arrow_sprite, inter_steps=1, add_start=T
                 )
                 diff = p_coord - prev_p_coord
                 #interp_coord = prev_p_coord + (fract*(diff.astype(np.float32))).astype(np.int32)
-                if np.linalg.norm(diff) > 16:
+                if np.linalg.norm(diff) > 2:
                     continue
                 coords_tup = tuple(prev_p_coord.tolist())
                 if coords_tup in all_flows.keys():
@@ -171,20 +171,57 @@ def compute_flow(fname, all_coords, bg, arrow_sprite, inter_steps=1, add_start=T
     max_y = max([k[1] for k in all_flows.keys()])
     grid_dims = (max_x - min_x, max_y - min_y)
     cell_dim = arrow_sprite.size[0] # use x only, assuming square
+    
+    # from https://github.com/PWhiddy/Growing-Neural-Cellular-Automata-Pytorch/blob/master/CA_Particles_V3/ca_particles/particle_simulation.py#L56
+    def hsv2rgb(c):
+        # from iq https://www.shadertoy.com/view/lsS3Wc
+        rgb = np.clip( np.abs(np.mod(c[0]*6.0+np.array([0.0,4.0,2.0]),6.0)-3.0)-1.0, 0.0, 1.0 )
+        wht = np.array([1.0,1.0,1.0])
+        return c[2] * (c[1]*rgb + (1.0-c[1])*wht)
+    
     full_img = np.zeros( ((grid_dims[0]+1) * cell_dim, (grid_dims[1]+1) * cell_dim, 4 ), dtype=np.uint8)
     for coord, total_move in tqdm(all_flows.items()):
-        angle = 180 * math.atan2(total_move[0], total_move[1]) / math.pi
+        angle = math.atan2(-total_move[0], total_move[1])
         #mag = math.sqrt(coord[0]**2 + coord[1]**2)
-        rotated_arrow = arrow_sprite.rotate(angle, resample=Image.Resampling.BICUBIC)
+        rotated_arrow = arrow_sprite.rotate(180*angle/math.pi, resample=Image.Resampling.BICUBIC)
         nx = coord[0] - min_x
         ny = coord[1] - min_y
+        color = hsv2rgb(np.array([0.5*angle/math.pi+0.5, 1.0, 1.0]))
         full_img[
             nx * cell_dim : (nx + 1) * cell_dim, 
             ny * cell_dim : (ny + 1) * cell_dim
-        ] = np.array(rotated_arrow)
+        ] = np.array(rotated_arrow) * np.array([color[0], color[1], color[2], 1.0])
     print("Writing file")
     final_img = Image.fromarray(full_img)
     final_img.save(f"{fname}.png")
+    
+    '''
+    print("generating coords")
+    fig, ax = plt.subplots(figsize=grid_dims)
+    u = np.array([v[0] for v in all_flows.values()])
+    v = np.array([v[1] for v in all_flows.values()])
+    u, v = np.tanh(u), np.tanh(v)
+    cols = []
+    for i in range(len(u)):
+        mag = (u[i]**2 + v[i]**2)**0.25 + 0.0001
+        #u[i] /= mag
+        #v[i] /= mag
+        cols.append(mag)
+    print("rendering")
+    ax.quiver(
+        [k[0] for k in all_flows.keys()], 
+        [k[1] for k in all_flows.keys()], 
+        u, v,
+        cols
+    )
+    ax.xaxis.set_ticks([])
+    ax.yaxis.set_ticks([])
+    #ax.axis([-0.3, 2.3, -0.3, 2.3])
+    ax.set_aspect('equal')
+    #plt.title('Matplotlib Example')
+    print("saving")
+    plt.savefig(f"{fname}.png")
+    '''
     
     return errors
 
@@ -233,12 +270,12 @@ if __name__ == '__main__':
     with Pool(procs) as p:
         run_steps = 16385
         base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
-        base_data = base_data[:, ::5, :] # (16385, 26840, 3)
+        base_data = base_data[:, ::671, :] # (16385, 26840, 3)
         print(f'base_data shape: {base_data.shape}')
         runs = base_data.shape[0] #base_data.shape[1]
         chunk_size = runs // procs
         all_render_errors = p.starmap(
             test_render, 
             #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
-            [(f'map_flow_run1/test_run_p{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], start_bg, arrow_img) for i in range(procs)])
+            [(f'map_flow_run1/test_run_p_color{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], start_bg, arrow_img) for i in range(procs)])
     
