@@ -93,7 +93,7 @@ def blend_overlay(background, over):
 def split(img):
     return img
 
-def compute_flow(fname, all_coords, bg, arrow_sprite, inter_steps=1, add_start=True):
+def compute_flow(all_coords, bg, inter_steps=1, add_start=True):
     debug = False
     errors = []
     sprites_rendered = 0
@@ -162,8 +162,11 @@ def compute_flow(fname, all_coords, bg, arrow_sprite, inter_steps=1, add_start=T
                     errors.append(error)
                 else:
                     sprites_rendered += 1
-            perc = len(errors) / (sprites_rendered + len(errors))
-            pbar.set_description(f"draws: {sprites_rendered} errors: {len(errors)}, {perc:.2%}")
+            pbar.set_description(f"draws: {sprites_rendered}")
+    
+    return all_flows
+
+def render_arrows(fname, all_flows, arrow_sprite):
     print("Rendering arrows")
     min_x = min([k[0] for k in all_flows.keys()])
     max_x = max([k[0] for k in all_flows.keys()])
@@ -223,14 +226,11 @@ def compute_flow(fname, all_coords, bg, arrow_sprite, inter_steps=1, add_start=T
     plt.savefig(f"{fname}.png")
     '''
     
-    return errors
-
-def test_render(name, dat, bg, arrow_sprite):
+def compute_flow_wrap(dat, bg):
     print(f'processing chunk with shape {dat.shape}')
     return compute_flow(
-        name,
         dat,
-        bg, arrow_sprite,
+        bg,
         inter_steps=1
     )
 
@@ -259,23 +259,33 @@ if __name__ == '__main__':
 
     main_map = np.array(Image.open('poke_map/pokemap_full_calibrated_CROPPED_1.png'))
     chars_img = np.array(Image.open('poke_map/characters.png'))
-    arrow_size = 32
+    arrow_size = 16 #32
     arrow_img = Image.open('poke_map/transparent_arrow.png').resize((arrow_size, arrow_size))
     #alpha_val = get_sprite_by_coords(chars_img, 1, 0)[0,0]
     #walks = [get_sprite_by_coords(chars_img, x, 0) for x in [1, 4, 6, 8]]
         
     start_bg = main_map.copy()
 
-    procs = 1
+    procs = 8
     with Pool(procs) as p:
         run_steps = 16385
         base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
-        base_data = base_data[:, ::671, :] # (16385, 26840, 3)
+        base_data = base_data[:, ::305, :] # (16385, 26840, 3)
         print(f'base_data shape: {base_data.shape}')
         runs = base_data.shape[0] #base_data.shape[1]
         chunk_size = runs // procs
-        all_render_errors = p.starmap(
-            test_render, 
+        batches_all_flows = p.starmap(
+            compute_flow_wrap, 
             #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
-            [(f'map_flow_run1/test_run_p_color{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], start_bg, arrow_img) for i in range(procs)])
-    
+            [(base_data[chunk_size*i:chunk_size*(i+1)+5], start_bg) for i in range(procs)])
+        
+        print(f"batches: {len(batches_all_flows)}")
+        merged_flows = {}
+        for batch in batches_all_flows:
+            for cell, flow in batch.items():
+                if cell in merged_flows.keys():
+                    merged_flows[cell] += flow
+                else:
+                    merged_flows[cell] = flow
+        
+        render_arrows("map_flow_run1/combined_1", merged_flows, arrow_img)
