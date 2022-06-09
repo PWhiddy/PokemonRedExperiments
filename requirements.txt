@@ -3,5 +3,6 @@ torch
 einops
 hnswlib
 numpy
+seaborn
 pyboy
 git+https://github.com/PWhiddy/mediapy.git

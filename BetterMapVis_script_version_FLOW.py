@@ -1,5 +1,7 @@
 import pandas as pd
 from pathlib import Path
+import matplotlib
+import seaborn
 import matplotlib.pyplot as plt
 from PIL import Image
 from einops import rearrange
@@ -23,7 +25,7 @@ def get_sprite_by_coords(img, x, y):
     return np.where((sprite == alpha_v).all(axis=2).reshape(16,16,1), np.array([[[0,0,0,0]]]), sprite).astype(np.uint8)
 
 def game_coord_to_global_coord(
-    x, y, map_idx, base_y):
+    x, y, map_idx):
     
     global_offset = np.array([1056-16*12, 331]) #np.array([790, -29])
     map_offsets = {
@@ -93,7 +95,7 @@ def blend_overlay(background, over):
 def split(img):
     return img
 
-def compute_flow(all_coords, bg, inter_steps=1, add_start=True):
+def compute_flow(all_coords, inter_steps=1, add_start=True):
     debug = False
     errors = []
     sprites_rendered = 0
@@ -139,10 +141,10 @@ def compute_flow(all_coords, bg, inter_steps=1, add_start=True):
                         state[run]['dir'] = 0
 
                 p_coord = game_coord_to_global_coord(
-                    cx, -cy, state[run]['map'], bg.shape[0]
+                    cx, -cy, state[run]['map']
                 )
                 prev_p_coord = game_coord_to_global_coord(
-                    px, -py, prev[2], bg.shape[0]
+                    px, -py, prev[2]
                 )
                 diff = p_coord - prev_p_coord
                 #interp_coord = prev_p_coord + (fract*(diff.astype(np.float32))).astype(np.int32)
@@ -174,13 +176,9 @@ def render_arrows(fname, all_flows, arrow_sprite):
     max_y = max([k[1] for k in all_flows.keys()])
     grid_dims = (max_x - min_x, max_y - min_y)
     cell_dim = arrow_sprite.size[0] # use x only, assuming square
-    
-    # from https://github.com/PWhiddy/Growing-Neural-Cellular-Automata-Pytorch/blob/master/CA_Particles_V3/ca_particles/particle_simulation.py#L56
-    def hsv2rgb(c):
-        # from iq https://www.shadertoy.com/view/lsS3Wc
-        rgb = np.clip( np.abs(np.mod(c[0]*6.0+np.array([0.0,4.0,2.0]),6.0)-3.0)-1.0, 0.0, 1.0 )
-        wht = np.array([1.0,1.0,1.0])
-        return c[2] * (c[1]*rgb + (1.0-c[1])*wht)
+     
+    #colmap = matplotlib.cm.get_cmap('husl')
+    colmap = seaborn.husl_palette(h=0.1, s=0.95, l=0.75, as_cmap=True)
     
     full_img = np.zeros( ((grid_dims[0]+1) * cell_dim, (grid_dims[1]+1) * cell_dim, 4 ), dtype=np.uint8)
     for coord, total_move in tqdm(all_flows.items()):
@@ -189,7 +187,8 @@ def render_arrows(fname, all_flows, arrow_sprite):
         rotated_arrow = arrow_sprite.rotate(180*angle/math.pi, resample=Image.Resampling.BICUBIC)
         nx = coord[0] - min_x
         ny = coord[1] - min_y
-        color = hsv2rgb(np.array([0.5*angle/math.pi+0.5, 1.0, 1.0]))
+        #color = hsv2rgb(np.array([0.5*angle/math.pi+0.5, 1.0, 1.0]))
+        color = colmap(0.5*angle/math.pi+0.5)
         full_img[
             nx * cell_dim : (nx + 1) * cell_dim, 
             ny * cell_dim : (ny + 1) * cell_dim
@@ -226,11 +225,10 @@ def render_arrows(fname, all_flows, arrow_sprite):
     plt.savefig(f"{fname}.png")
     '''
     
-def compute_flow_wrap(dat, bg):
+def compute_flow_wrap(dat):
     print(f'processing chunk with shape {dat.shape}')
     return compute_flow(
         dat,
-        bg,
         inter_steps=1
     )
 
@@ -264,28 +262,25 @@ if __name__ == '__main__':
     #alpha_val = get_sprite_by_coords(chars_img, 1, 0)[0,0]
     #walks = [get_sprite_by_coords(chars_img, x, 0) for x in [1, 4, 6, 8]]
         
-    start_bg = main_map.copy()
-
     procs = 8
     with Pool(procs) as p:
         run_steps = 16385
         base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
-        base_data = base_data[:, ::305, :] # (16385, 26840, 3)
+        #base_data = base_data[:, ::110, :] # (16385, 26840, 3)
         print(f'base_data shape: {base_data.shape}')
         runs = base_data.shape[0] #base_data.shape[1]
         chunk_size = runs // procs
-        batches_all_flows = p.starmap(
+        batches_all_flows = p.map(
             compute_flow_wrap, 
-            #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
-            [(base_data[chunk_size*i:chunk_size*(i+1)+5], start_bg) for i in range(procs)])
+            [base_data[chunk_size*i:chunk_size*(i+1)+5] for i in range(procs)])
         
-        print(f"batches: {len(batches_all_flows)}")
+        print(f"merging {len(batches_all_flows)} batches")
         merged_flows = {}
-        for batch in batches_all_flows:
+        for batch in tqdm(batches_all_flows):
             for cell, flow in batch.items():
                 if cell in merged_flows.keys():
                     merged_flows[cell] += flow
                 else:
                     merged_flows[cell] = flow
         
-        render_arrows("map_flow_run1/combined_1", merged_flows, arrow_img)
+        render_arrows("map_flow_run1/full_combined_1", merged_flows, arrow_img)
