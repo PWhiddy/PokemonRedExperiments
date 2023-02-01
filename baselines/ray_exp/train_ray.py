@@ -9,9 +9,9 @@ sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
 env_config = {
             'headless': True, 'save_final_state': True, 'early_stop': False,
-            'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
-            'print_rewards': False, 'save_video': True, 'fast_video': True, 'session_path': sess_path,
-            'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 500_000.0
+            'action_freq': 24, 'init_state': '../../has_pokedex_nballs.state', 'max_steps': ep_length, 
+            'print_rewards': False, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
+            'gb_path': '../../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 500_000.0
         }
 
 ray.init(num_gpus=1)
