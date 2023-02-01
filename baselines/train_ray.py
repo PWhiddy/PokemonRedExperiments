@@ -4,14 +4,14 @@ import ray
 from ray.rllib.algorithms import ppo
 from red_gym_env_ray import RedGymEnv
 
-ep_length = 512 # 2048 * 8
+ep_length = 2048 # 2048 * 8
 sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
 env_config = {
             'headless': True, 'save_final_state': True, 'early_stop': False,
             'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
             'print_rewards': False, 'save_video': True, 'fast_video': True, 'session_path': sess_path,
-            'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
+            'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 500_000.0
         }
 
 ray.init(num_gpus=1)
@@ -34,19 +34,24 @@ config = (
     .rollouts(num_rollout_workers=3)
     .training(
         model={
+            "grayscale": True,
+            "framestack": True,
             #  model with an LSTM.
-            "use_lstm": True,
+       #     "use_lstm": True,
             # To further customize the LSTM auto-wrapper.
-            "lstm_cell_size": 64
+       #     "lstm_cell_size": 64
             # Specify our custom model from above.
             #"custom_model": "my_torch_model",
             # Extra kwargs to be passed to your model's c'tor.
            # "custom_model_config": {},
         },
-        gamma=0.993,
-        train_batch_size=128
+        gamma=0.98,
+        train_batch_size=512
     )
 )
 algo = config.build()
-algo.train()
-algo.stop()
+for _ in range(2000):
+  results = algo.train()
+  print(results)
+#algo.train()
+#algo.stop()
