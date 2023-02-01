@@ -5,4 +5,5 @@ hnswlib
 numpy
 seaborn
 pyboy
+tensorboard
 git+https://github.com/PWhiddy/mediapy.git

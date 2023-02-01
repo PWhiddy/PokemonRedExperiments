@@ -30,8 +30,8 @@ config = (
     ppo.PPOConfig()
     .environment(RedGymEnv, env_config=env_config)
     .framework("torch")
-    .resources(num_gpus=1)
-    .rollouts(num_rollout_workers=3)
+    .resources(num_gpus=4)
+    .rollouts(num_rollout_workers=48)
     .training(
         model={
             "grayscale": True,
