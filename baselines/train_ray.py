@@ -4,7 +4,7 @@ import ray
 from ray.rllib.algorithms import ppo
 from red_gym_env_ray import RedGymEnv
 
-ep_length = 2048 * 2 # 8
+ep_length = 512 # 2048 * 8
 sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
 env_config = {
@@ -14,11 +14,37 @@ env_config = {
             'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
         }
 
-ray.init()
-algo = ppo.PPO(env=RedGymEnv, config={
-    "framework": "torch",
-    "env_config": env_config,  # config to pass to env class
-})
+ray.init(num_gpus=1)
 
-while True:
-    print(algo.train())
+#algo = ppo.PPO(env=RedGymEnv, config={
+#    "num_gpus": 1,
+#    "model_config": {
+#        "use_lstm":True
+#    },
+#    "framework": "torch",
+#    "env_config": env_config,  # config to pass to env class
+#})
+
+# Create the Algorithm from a config object.
+config = (
+    ppo.PPOConfig()
+    .environment(RedGymEnv)
+    .env_config(env_config)
+    .framework("torch")
+    .resources(num_gpus=1)
+    .training(
+        model={
+            # Auto-wrap the custom(!) model with an LSTM.
+            "use_lstm": True,
+            # To further customize the LSTM auto-wrapper.
+            "lstm_cell_size": 64
+            # Specify our custom model from above.
+            #"custom_model": "my_torch_model",
+            # Extra kwargs to be passed to your model's c'tor.
+           # "custom_model_config": {},
+        }
+    )
+)
+algo = config.build()
+algo.train()
+algo.stop()

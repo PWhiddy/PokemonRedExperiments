@@ -6,6 +6,9 @@ from math import floor, sqrt
 import json
 from pathlib import Path
 
+import logging
+logging.getLogger("pyboy.plugins.window_headless").setLevel(logging.WARNING)
+
 import numpy as np
 from einops import rearrange
 import matplotlib.pyplot as plt
@@ -15,8 +18,11 @@ import hnswlib
 import mediapy as media
 import pandas as pd
 
-import gym
-from gym import spaces
+#import gym
+#from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
+
 from pyboy.utils import WindowEvent
 
 class RedGymEnv(gym.Env):
@@ -96,7 +102,7 @@ class RedGymEnv(gym.Env):
                 debugging=False,
                 disable_input=False,
                 window_type=head,
-                hide_window='--quiet' in sys.argv,
+                hide_window=True,#'--quiet' in sys.argv,
             )
 
         self.screen = self.pyboy.botsupport_manager().screen()
@@ -104,7 +110,7 @@ class RedGymEnv(gym.Env):
         self.pyboy.set_emulation_speed(0 if config['headless'] else 6)
         self.reset()
 
-    def reset(self):
+    def reset(self, *, seed=None, options=None):
         # restart game, skipping credits
         with open(self.init_state, "rb") as f:
             self.pyboy.load_state(f)
@@ -142,7 +148,7 @@ class RedGymEnv(gym.Env):
         self.progress_reward = self.get_game_state_reward()
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
-        return self.render(add_memory=False)
+        return self.render(add_memory=False), {}
     
     def init_knn(self):
         # Declaring index
@@ -206,7 +212,7 @@ class RedGymEnv(gym.Env):
 
         self.step_count += 1
 
-        return obs_memory, new_reward*0.1, done, {}
+        return obs_memory, new_reward*0.1, done, done, {}
 
     def run_action_on_emulator(self, action):
         # press button then release after some steps
