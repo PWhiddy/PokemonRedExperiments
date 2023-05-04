@@ -213,18 +213,20 @@ if __name__ == '__main__':
         
     start_bg = main_map.copy()
 
-    procs = 16
+    procs = 8#16
     with Pool(procs) as p:
         run_steps = 16385
         base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
+        base_data = base_data[:1024]
         #base_data = rearrange(base_coords, '(v s) r c -> s v r c', v=base_coords.shape[0]//run_steps)
         print(f'base_data shape: {base_data.shape}')
         runs = base_data.shape[0] #base_data.shape[1]
-        #chunk_size = runs // procs
-        render_errors = test_render(
-            f'map_vis_final_state', base_data[(base_data.shape[0]-5):], walks, start_bg)
-        #all_render_errors = p.starmap(
-        #    test_render, 
-        #    #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
-        #    [(f'vids_run1/test_run_p{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], walks, start_bg) for i in range(procs)])
+        chunk_size = runs // procs
+        #render_errors = test_render(
+        #    f'map_vis_final_state', base_data[(base_data.shape[0]-5):], walks, start_bg)
+        f'map_vis_initial_state', base_data[:], walks, start_bg
+        all_render_errors = p.starmap(
+            test_render, 
+            #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
+            [(f'map_vis_color/map_vis_initial_state{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], walks, start_bg) for i in range(procs)])
     
