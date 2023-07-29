@@ -18,8 +18,6 @@ import hnswlib
 import mediapy as media
 import pandas as pd
 
-#import gym
-#from gym import spaces
 import gymnasium as gym
 from gymnasium import spaces
 

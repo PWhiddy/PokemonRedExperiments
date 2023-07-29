@@ -2,7 +2,6 @@ from os.path import exists
 from pathlib import Path
 import uuid
 from red_gym_env import RedGymEnv
-import gym
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
