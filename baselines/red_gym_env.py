@@ -15,11 +15,10 @@ import hnswlib
 import mediapy as media
 import pandas as pd
 
-import gym
-from gym import spaces
+from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
-class RedGymEnv(gym.Env):
+class RedGymEnv(Env):
 
 
     def __init__(
@@ -43,7 +42,7 @@ class RedGymEnv(gym.Env):
         self.frame_stacks = 3
         self.similar_frame_dist = config['sim_frame_dist']
         self.reset_count = 0
-        self.instance_id = str(uuid.uuid4())[:8]
+        self.instance_id = str(uuid.uuid4())[:8] if 'instance_id' not in config else config['instance_id']
         self.s_path.mkdir(exist_ok=True)
         self.all_runs = []
 
@@ -103,7 +102,8 @@ class RedGymEnv(gym.Env):
         self.pyboy.set_emulation_speed(0 if config['headless'] else 6)
         self.reset()
 
-    def reset(self):
+    def reset(self, seed=None):
+        self.seed = seed
         # restart game, skipping credits
         with open(self.init_state, "rb") as f:
             self.pyboy.load_state(f)
@@ -141,7 +141,7 @@ class RedGymEnv(gym.Env):
         self.progress_reward = self.get_game_state_reward()
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
         self.reset_count += 1
-        return self.render()
+        return self.render(), {}
     
     def init_knn(self):
         # Declaring index
@@ -174,7 +174,7 @@ class RedGymEnv(gym.Env):
     def step(self, action):
 
         self.run_action_on_emulator(action)
-        self.append_agent_stats()
+        self.append_agent_stats(action)
 
         self.recent_frames = np.roll(self.recent_frames, 1, axis=0)
         obs_memory = self.render()
@@ -198,13 +198,13 @@ class RedGymEnv(gym.Env):
         self.recent_memory[0, 1] = min(new_prog[1] * 64, 255)
         self.recent_memory[0, 2] = min(new_prog[2] * 128, 255)
 
-        done = self.check_if_done()
+        step_limit_reached = self.check_if_done()
 
-        self.save_and_print_info(done, obs_memory)
+        self.save_and_print_info(step_limit_reached, obs_memory)
 
         self.step_count += 1
 
-        return obs_memory, new_reward*0.1, done, {}
+        return obs_memory, new_reward*0.1, False, step_limit_reached, {}
 
     def run_action_on_emulator(self, action):
         # press button then release after some steps
@@ -230,13 +230,14 @@ class RedGymEnv(gym.Env):
         self.full_frame_writer.add_image(self.render(reduce_res=False, update_mem=False))
         self.model_frame_writer.add_image(self.render(reduce_res=True, update_mem=False))
     
-    def append_agent_stats(self):
+    def append_agent_stats(self, action):
         x_pos = self.read_m(0xD362)
         y_pos = self.read_m(0xD361)
         map_n = self.read_m(0xD35E)
         levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         self.agent_stats.append({
-            'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n, 
+            'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n,
+            'last_action': action,
             'pcount': self.read_m(0xD163), 'levels': levels, 'ptypes': self.read_party(),
             'hp': self.read_hp_fraction(),
             'frames': self.knn_index.get_current_count(),
@@ -274,7 +275,7 @@ class RedGymEnv(gym.Env):
         if new_step < 0 and self.read_hp_fraction() > 0:
             #print(f'\n\nreward went down! {self.progress_reward}\n\n')
             self.save_screenshot('neg_reward')
-            
+    
         self.total_reward = new_total
         return (new_step, 
                    (new_prog[0]-old_prog[0], 

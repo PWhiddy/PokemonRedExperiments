@@ -2,7 +2,6 @@ from os.path import exists
 from pathlib import Path
 import uuid
 from red_gym_env import RedGymEnv
-import gym
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -19,7 +18,7 @@ def make_env(rank, env_conf, seed=0):
     """
     def _init():
         env = RedGymEnv(env_conf)
-        env.seed(seed + rank)
+        #env.seed(seed + rank)
         return env
     set_random_seed(seed)
     return _init
@@ -53,13 +52,15 @@ if __name__ == '__main__':
     else:
         model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
     
-    agent_enabled = True
-    def toggle_agent():
-        agent_enabled = not agent_enabled
     #keyboard.on_press_key("M", toggle_agent)
     obs = env.reset()
     while True:
         action = 7 # pass action
+        try:
+            with open("agent_enabled.txt", "r") as f:
+                agent_enabled = f.readlines()[0].startswith("yes")
+        except:
+            agent_enabled = False
         if agent_enabled:
             action, _states = model.predict(obs, deterministic=False)
         obs, rewards, dones, info = env.step(action)

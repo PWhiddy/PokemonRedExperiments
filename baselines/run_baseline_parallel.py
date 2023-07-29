@@ -19,7 +19,7 @@ def make_env(rank, env_conf, seed=0):
     """
     def _init():
         env = RedGymEnv(env_conf)
-        env.seed(seed + rank)
+        env.reset(seed=(seed + rank))
         return env
     set_random_seed(seed)
     return _init
