@@ -38,9 +38,8 @@ if __name__ == '__main__':
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    file_name = 'session_4da05e87_main_good/poke_439746560_steps'#'session_e41c9eff/poke_38207488_steps' #'session_e41c9eff/poke_250871808_steps'
+    file_name = 'session_4da05e87_main_good/poke_439746560_steps'
     
-    #'session_bfdca25a/poke_42532864_steps' #'session_d3033abb/poke_47579136_steps' #'session_a17cc1f5/poke_33546240_steps' #'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
@@ -53,7 +52,7 @@ if __name__ == '__main__':
         model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
     
     #keyboard.on_press_key("M", toggle_agent)
-    obs = env.reset()
+    obs, info = env.reset()
     while True:
         action = 7 # pass action
         try:
@@ -63,5 +62,5 @@ if __name__ == '__main__':
             agent_enabled = False
         if agent_enabled:
             action, _states = model.predict(obs, deterministic=False)
-        obs, rewards, dones, info = env.step(action)
+        obs, rewards, terminated, truncated, info = env.step(action)
         env.render()
