@@ -1,8 +1,8 @@
-
+# Pokemon Red RL
 
 <img src="/assets/poke_map.gif?raw=true">
 
-# Pokemon Red RL
+
 
 Experiments training reinforcement learning agents to play Pokemon Red.   
 Watch the [Video on Youtube!](https://youtube.com/the-video)
