@@ -8,6 +8,7 @@ torch
 einops
 hnswlib
 numpy
+opencv-python
 seaborn
 pyboy
 git+https://github.com/PWhiddy/mediapy.git # for rbga (alpha channel) support
