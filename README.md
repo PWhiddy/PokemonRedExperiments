@@ -5,7 +5,7 @@
 
 
 Experiments training reinforcement learning agents to play Pokemon Red.   
-Watch the [Video on Youtube!](https://youtube.com/the-video)
+Watch the [Video on Youtube!](https://youtu.be/DcYLT37ImBY)
 
 ### To run the pretrained model locally:
 
