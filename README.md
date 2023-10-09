@@ -1,12 +1,17 @@
 # Pokemon Red RL
 
-<img src="/assets/poke_map.gif?raw=true">
-
+<a href="https://youtu.be/DcYLT37ImBY">
+  <img src="/assets/poke_map.gif?raw=true">
+</a>
 
 
 Experiments training reinforcement learning agents to play Pokemon Red.   
-Watch the [Video on Youtube!](https://youtu.be/DcYLT37ImBY)
+Watch the [Video on Youtube!](https://youtu.be/DcYLT37ImBY)  
 
+<a href="https://youtu.be/DcYLT37ImBY">
+  <img src="/assets/Pokemon YT5 FFFFinal.jpg?raw=true" width="512">
+</a>
+  
 ### To run the pretrained model locally:
 
 1. Copy your legally obtained Pokemon Red ROM into the base directory. You can find this using google, it should be 1MB. Rename it to `PokemonRed.gb` if it is not already. 
