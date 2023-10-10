@@ -73,6 +73,10 @@ class RedGymEnv(Env):
             WindowEvent.RELEASE_BUTTON_B
         ]
 
+        # This would be the optimal, but CnnPolicy warns about atleast 36x36 and we get a runtime error in update_frame_knn_index
+        # The tilemap output is 160x144 pixels divided by 8px tiles: 20x18 tiles (inverted for row-major).
+        # We are not actually storing color data, but rather just a tile index, which is seemingly unique for a specific tile (ask on Discord for the long explanation).
+        # self.output_shape = (18, 20, 3)
         self.output_shape = (36, 40, 3)
         self.mem_padding = 2
         self.memory_height = 8
@@ -85,9 +89,12 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
+        # TODO: Maybe this needs to be changed as we are using larger numbers idk?
         self.observation_space = spaces.Box(low=0, high=255, shape=self.output_full, dtype=np.uint8)
 
-        head = 'headless' if config['headless'] else 'SDL2'
+        # 'dummy' does not render anything to the screen like 'headless' or 'SDL2' does, which saves *alot* of compute time (10x).
+        # This is also why we need to use the tilemaps, but tilemaps are also more accurate.
+        head = 'dummy' if config['headless'] else 'SDL2'
 
         self.pyboy = PyBoy(
                 config['gb_path'],
@@ -95,7 +102,9 @@ class RedGymEnv(Env):
                 disable_input=False,
                 window_type=head,
                 hide_window='--quiet' in sys.argv,
+                game_wrapper=True,
             )
+        self.game_wrapper = self.pyboy.game_wrapper()
 
         self.screen = self.pyboy.botsupport_manager().screen()
 
@@ -151,10 +160,12 @@ class RedGymEnv(Env):
             max_elements=self.num_elements, ef_construction=100, M=16)
 
     def render(self, reduce_res=True, add_memory=True, update_mem=True):
-        game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
-            game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
             if update_mem:
+                game_pixels_render = np.zeros(self.output_shape, dtype=np.uint8)
+                # WARN: We only fill some of the frame buffer, as we cannot make self.output_shape smaller without crashing,
+                # but the game area isn't any larger. I hope the RL library will ignore the blank space.
+                game_pixels_render[:18,:20, :] = np.asarray(self.game_wrapper.game_area(), dtype=np.uint32).view(np.uint8).reshape(18, 20, 4)[:,:,:3]
                 self.recent_frames[0] = game_pixels_render
             if add_memory:
                 pad = np.zeros(
@@ -169,8 +180,11 @@ class RedGymEnv(Env):
                         rearrange(self.recent_frames, 'f h w c -> (f h) w c')
                     ),
                     axis=0)
+        else:
+            # WARN: This is blank when using 'dummy'. Maybe change to headless when you need to visualize.
+            game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         return game_pixels_render
-    
+
     def step(self, action):
 
         self.run_action_on_emulator(action)
@@ -392,9 +406,9 @@ class RedGymEnv(Env):
             scaled = (level_sum-explore_thresh) / scale_factor + explore_thresh
         self.max_level_rew = max(self.max_level_rew, scaled)
         return self.max_level_rew
-    
+
     def get_knn_reward(self):
-        pre_rew = 0.004
+        pre_rew = 0.004 # idk if something needs to be recalibrated for the change to tilemaps
         post_rew = 0.01
         cur_size = self.knn_index.get_current_count()
         base = (self.base_explore if self.levels_satisfied else cur_size) * pre_rew
