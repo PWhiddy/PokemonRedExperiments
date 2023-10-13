@@ -27,8 +27,8 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
     sess_path = f'session_{str(uuid.uuid4())[:8]}'
-    ep_length = 2**24
-    args = get_args(usage_string=None, ep_length=ep_length, sess_path=sess_path)
+    ep_length = 2**16
+    args = get_args(usage_string=None, headless=False, ep_length=ep_length, sess_path=sess_path)
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,

@@ -5,12 +5,12 @@
 import argparse
 from pathlib import Path
 
-def get_args(usage_string=None, ep_length=None, sess_path=None):
+def get_args(usage_string=None, ep_length=None, sess_path=None, headless=True):
     #Self-explanatory, gets the arguments given a few arguments that change depending on the file
     description='Argument parser for env_config',
     usage=f'python {usage_string} [--headless HEADLESS] [--save_final_state SAVE_FINAL_STATE] ...' #usage different depending on the file
     parser = argparse.ArgumentParser(description=description, usage=usage)
-    parser.add_argument('--headless', type=bool, default=True, help='Whether to run the environment in headless mode')
+    parser.add_argument('--headless', type=bool, default=headless, help='Whether to run the environment in headless mode')
     parser.add_argument('--save_final_state', type=bool, default=True, help='Whether to save the final state of the environment')
     parser.add_argument('--early_stop', type=bool, default=False, help='Whether to stop the environment early')
     parser.add_argument('--action_freq', type=int, default=24, help='Frequency of actions')
