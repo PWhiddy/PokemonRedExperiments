@@ -4,9 +4,12 @@
 
 import argparse
 from pathlib import Path
+import uuid
 
 def get_args(usage_string=None, ep_length=None, sess_path=None, headless=True):
     #Self-explanatory, gets the arguments given a few arguments that change depending on the file
+    if sess_path == None:
+        sess_path = f'session_{str(uuid.uuid4())[:8]}'
     description='Argument parser for env_config',
     usage=f'python {usage_string} [--headless HEADLESS] [--save_final_state SAVE_FINAL_STATE] ...' #usage different depending on the file
     parser = argparse.ArgumentParser(description=description, usage=usage)
@@ -38,7 +41,7 @@ def change_env(env_config, args):
         'print_rewards': args.print_rewards,
         'save_video': args.save_video,
         'fast_video': args.fast_video,
-        'session_path': Path('args.session_path'), #Note: This now must be run to convert the path string to a Path object
+        'session_path': Path(args.session_path), 
         'gb_path': args.gb_path,
         'debug': args.debug,
         'sim_frame_dist': args.sim_frame_dist
