@@ -28,7 +28,7 @@ You can pause the AI's input during the game by editing `agent_enabled.txt`
 Note that the Pokemon.gb file MUST be in the main directory and your current directory MUST be the `baselines/` directory in order for this to work.
 
 ### Training the Model
-Note: By default this can use up to ~100G of RAM. You can decrease this by reducing the number of CPUs or episode length, but it may affect the results. Also, the model behavior may become degenerate for up to the first 50 training iterations or so before starting to improve. This could probably be fixed with better hyperparameters but I haven't had the time or resources to sweep these.
+Note: By default this can use up to ~100G of RAM. You can decrease this by reducing the `num_cpu` or `ep_length`, but it may affect the results. Also, the model behavior may become degenerate for up to the first 50 training iterations or so before starting to improve. This could likely be fixed with better hyperparameters but I haven't had the time or resources to sweep these.
 1. Previous steps 1-3
 2. Run:  
 ```python run_baseline_parallel.py```
