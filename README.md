@@ -32,6 +32,9 @@ You can pause the AI's input during the game by editing `agent_enabled.txt`
 2. Run:  
 ```python run_baseline_parallel.py```
 
+### Tracking training progress
+You can view the current state of each emulator, plot basic stats, and compare to previous runs using the `VisualizeProgress.ipynb` notebook.
+
 ### Extra
 Map visualization code can be found in `visualization/` directory.
 
