@@ -20,7 +20,9 @@
 3. Install dependencies:  
 ```pip install -r requirements.txt```  
 It may be necessary in some cases to separately install the SDL libraries.
-4. Run:  
+4. Install ffmpeg on Apple
+```brew install ffmpeg```
+5. Run:  
 ```python run_pretrained_interactive.py```
 
 By default the game with terminate after 32K steps, or ~1 hour. You can increase this by adjusting the `ep_length` variable, but it will also use more memory. 
