@@ -23,7 +23,7 @@ It may be necessary in some cases to separately install the SDL libraries.
 4. Run:  
 ```python run_pretrained_interactive.py```
 
-By default the game with terminate after 32K steps, or ~1 hour. You can increase this by adjusting the `ep_length` variable, but it will also use more memory. 
+By default the game will terminate after 32K steps, or ~1 hour. You can increase this by adjusting the `ep_length` variable, but it will also use more memory. 
 
 Interact with the emulator using the arrow keys and the `a` and `s` keys (A and B buttons).  
 You can pause the AI's input during the game by editing `agent_enabled.txt`
