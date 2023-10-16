@@ -8,6 +8,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
 from argparse_pokemon import *
+import os
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -39,8 +40,10 @@ if __name__ == '__main__':
             }
     
     env_config = change_env(env_config, args)
-    
-    num_cpu = 44 #64 #46  # Also sets the number of episodes per training iteration
+
+    # Set the number of cpus dynamically
+    num_cpu = os.cpu_count()
+
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
