@@ -11,9 +11,7 @@ import json
 import math
 from tqdm import tqdm
 import mediapy as media
-import numpy as np
-
-
+import numpy as
 def make_all_coords_arrays(filtered_dfs):
     return np.array([tdf[['x', 'y', 'map']].to_numpy().astype(np.uint8) for tdf in filtered_dfs]).transpose(1,0,2)
 
