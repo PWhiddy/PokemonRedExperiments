@@ -21,9 +21,11 @@
 ```pip install -r requirements.txt```  
 It may be necessary in some cases to separately install the SDL libraries.
 4. Install ffmpeg on Windows, Mac and Linux
-Windows installer found <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z">here</a>
-```brew install ffmpeg -y```
-```sudo apt-get install ffmpeg -y```
+<br>Windows installer found <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-full.7z">here</a>
+<br>Mac instructions
+<br>```brew install ffmpeg -y```
+<br>Debian based instructions
+<br>```sudo apt-get install ffmpeg -y```
 5. Run:  
 ```python run_pretrained_interactive.py```
 
