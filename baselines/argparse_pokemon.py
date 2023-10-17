@@ -8,9 +8,9 @@ import uuid
 from baselines.constants import GB_FILENAME, DEFAULT_CPU_COUNT, DEFAULT_EP_LENGTH
 
 
-def get_args(sess_path=None, headless=True):
-    if sess_path is None:
-        sess_path = f'session_{str(uuid.uuid4())[:8]}'
+def get_args(headless=True):
+
+    sess_path = f'../user_sessions/session_{str(uuid.uuid4())[:8]}'
     description = 'Argument parser for env_config'
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--headless', type=bool, default=headless, help='Whether to run the environment in headless mode')
@@ -27,7 +27,6 @@ def get_args(sess_path=None, headless=True):
     parser.add_argument('--debug', type=bool, default=False, help='Whether to run the environment in debug mode')
     parser.add_argument('--sim_frame_dist', type=float, default=2_000_000.0, help='Simulation frame distance')
     parser.add_argument('--cpu_count', type=int, default=DEFAULT_CPU_COUNT, help='Number of CPUs to use')
-    parser.add_argument('--cpu_count', type=int, default=DEFAULT_CPU_COUNT, help='Number of CPUs to use')
 
     args, unknown_args = parser.parse_known_args() # Parses only the known args to fix an issue with argv[1] being used as a save path
 
@@ -39,7 +38,7 @@ def get_args(sess_path=None, headless=True):
 
     return args
 
-def change_env(env_config, args):
+def change_env(args):
     #Changes the environment based on the arguments given a env_config dictionary and args
     env_config = {
         'headless': args.headless,

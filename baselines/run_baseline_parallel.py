@@ -26,23 +26,15 @@ def make_env(rank, env_conf, seed=0):
 
 
 if __name__ == '__main__':
-    sess_path = f'session_{str(uuid.uuid4())[:8]}'
-    args = get_args(sess_path)
+    args = get_args()
 
-    env_config = {
-                'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': args,
-                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': GB_FILENAME, 'debug': False, 'sim_frame_dist': 2_000_000.0
-            }
-    
-    env_config = change_env(env_config, args)
+    env_config = change_env(args)
     
     num_cpu = args.cpu_count  # Also sets the number of episodes per training iteration
-    ep_length = args.ep_length
+    ep_length = args.max_steps
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
-    checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
+    checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=args.session_path,
                                      name_prefix='poke')
     #env_checker.check_env(env)
     learn_steps = 1
