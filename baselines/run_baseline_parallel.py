@@ -27,7 +27,7 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
 
-    ep_length = 2048 * 8
+    ep_length = 4 * 8
     sess_path = f'session_{str(uuid.uuid4())[:8]}'
     args = get_args('run_baseline_parallel.py', ep_length=ep_length, sess_path=sess_path)
 

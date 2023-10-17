@@ -26,7 +26,7 @@ def get_args(usage_string=None, ep_length=None, sess_path=None, headless=True):
     parser.add_argument('--gb_path', type=str, default='../PokemonRed.gb', help='Path to the gameboy ROM')
     parser.add_argument('--debug', type=bool, default=False, help='Whether to run the environment in debug mode')
     parser.add_argument('--sim_frame_dist', type=float, default=2_000_000.0, help='Simulation frame distance')
-    args, unknown_args= parser.parse_known_args() # Parses only the known args to fix an issue with argv[1] being used as a save path
+    args, unknown_argsz= parser.parse_known_args() # Parses only the known args to fix an issue with argv[1] being used as a save path
     return args
 
 def change_env(env_config, args):
