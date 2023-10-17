@@ -1,16 +1,16 @@
-# argparse_pokemon.py - Has two functions: one for getting arguments and another for changing the environment based on those arguments
+# _argparse.py - Has two functions: one for getting arguments and another for changing the environment based on those arguments
 # This is meant to help config your file without needing to go into the code
 # Ryan Peruski, 10-13-2023
 
 import argparse
 from pathlib import Path
-import uuid
 from baselines.constants import GB_FILENAME, DEFAULT_CPU_COUNT, DEFAULT_EP_LENGTH
-
+from baselines.util import get_new_session
 
 def get_args(headless=True):
 
-    sess_path = f'../user_sessions/session_{str(uuid.uuid4())[:8]}'
+    session_file = get_new_session()
+
     description = 'Argument parser for env_config'
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--headless', type=bool, default=headless, help='Whether to run the environment in headless mode')
@@ -22,7 +22,7 @@ def get_args(headless=True):
     parser.add_argument('--print_rewards', type=bool, default=True, help='Whether to print rewards')
     parser.add_argument('--save_video', type=bool, default=True, help='Whether to save a video of the environment')
     parser.add_argument('--fast_video', type=bool, default=False, help='Whether to save a fast video of the environment')
-    parser.add_argument('--session_path', type=str, default=sess_path, help='Path to the session')
+    parser.add_argument('--session_path', type=str, default=session_file, help='Path at which to save session data')
     parser.add_argument('--gb_path', type=str, default=GB_FILENAME, help='Path to the gameboy ROM')
     parser.add_argument('--debug', type=bool, default=False, help='Whether to run the environment in debug mode')
     parser.add_argument('--sim_frame_dist', type=float, default=2_000_000.0, help='Simulation frame distance')
@@ -38,8 +38,8 @@ def get_args(headless=True):
 
     return args
 
+
 def change_env(args):
-    #Changes the environment based on the arguments given a env_config dictionary and args
     env_config = {
         'headless': args.headless,
         'save_final_state': args.save_final_state,
