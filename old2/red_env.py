@@ -9,12 +9,13 @@ import hnswlib
 
 from rollout import Rollout
 
+from baselines.constants import GB_FILENAME
 class RedEnv:
 
     def __init__(
         self, headless=True, rollout_dir='rollouts',
         action_freq=5, init_state='init.state', 
-        gb_path='./PokemonRed.gb', debug=False):
+        gb_path=GB_FILENAME, debug=False):
 
         self.debug = debug
         self.vec_dim = 1080 #4320 #1000

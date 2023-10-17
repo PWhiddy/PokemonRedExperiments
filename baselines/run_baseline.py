@@ -5,6 +5,7 @@ from red_gym_env import RedGymEnv
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common import env_checker
 from argparse_pokemon import *
+from baselines.constants import GB_FILENAME
 
 sess_path = f'session_{str(uuid.uuid4())[:8]}'
 
@@ -12,13 +13,13 @@ run_steps = 2048
 runs_per_update = 6
 updates_per_checkpoint = 4
 
-args = get_args('run_baseline.py', ep_length=run_steps, sess_path=sess_path)
+args = get_args(sess_path=sess_path)
 
 env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False, 
                 'action_freq': 24, 'init_state': '../fast_text_start.state', 'max_steps': run_steps,
                 'print_rewards': True, 'save_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
+                'gb_path': GB_FILENAME, 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
 
 env_config = change_env(env_config, args)

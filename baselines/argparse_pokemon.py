@@ -5,28 +5,38 @@
 import argparse
 from pathlib import Path
 import uuid
+from baselines.constants import GB_FILENAME, DEFAULT_CPU_COUNT, DEFAULT_EP_LENGTH
 
-def get_args(usage_string=None, ep_length=None, sess_path=None, headless=True):
-    #Self-explanatory, gets the arguments given a few arguments that change depending on the file
-    if sess_path == None:
+
+def get_args(sess_path=None, headless=True):
+    if sess_path is None:
         sess_path = f'session_{str(uuid.uuid4())[:8]}'
-    description='Argument parser for env_config',
-    usage=f'python {usage_string} [--headless HEADLESS] [--save_final_state SAVE_FINAL_STATE] ...' #usage different depending on the file
-    parser = argparse.ArgumentParser(description=description, usage=usage)
+    description = 'Argument parser for env_config'
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('--headless', type=bool, default=headless, help='Whether to run the environment in headless mode')
     parser.add_argument('--save_final_state', type=bool, default=True, help='Whether to save the final state of the environment')
     parser.add_argument('--early_stop', type=bool, default=False, help='Whether to stop the environment early')
     parser.add_argument('--action_freq', type=int, default=24, help='Frequency of actions')
     parser.add_argument('--init_state', type=str, default='../has_pokedex_nballs.state', help='Initial state of the environment')
-    parser.add_argument('--max_steps', type=int, default=ep_length, help='Maximum number of steps in the environment')
+    parser.add_argument('--max_steps', type=int, default=DEFAULT_EP_LENGTH, help='Maximum number of steps in the environment')
     parser.add_argument('--print_rewards', type=bool, default=True, help='Whether to print rewards')
     parser.add_argument('--save_video', type=bool, default=True, help='Whether to save a video of the environment')
     parser.add_argument('--fast_video', type=bool, default=False, help='Whether to save a fast video of the environment')
     parser.add_argument('--session_path', type=str, default=sess_path, help='Path to the session')
-    parser.add_argument('--gb_path', type=str, default='../PokemonRed.gb', help='Path to the gameboy ROM')
+    parser.add_argument('--gb_path', type=str, default=GB_FILENAME, help='Path to the gameboy ROM')
     parser.add_argument('--debug', type=bool, default=False, help='Whether to run the environment in debug mode')
     parser.add_argument('--sim_frame_dist', type=float, default=2_000_000.0, help='Simulation frame distance')
-    args, unknown_argsz= parser.parse_known_args() # Parses only the known args to fix an issue with argv[1] being used as a save path
+    parser.add_argument('--cpu_count', type=int, default=DEFAULT_CPU_COUNT, help='Number of CPUs to use')
+    parser.add_argument('--cpu_count', type=int, default=DEFAULT_CPU_COUNT, help='Number of CPUs to use')
+
+    args, unknown_args = parser.parse_known_args() # Parses only the known args to fix an issue with argv[1] being used as a save path
+
+    if args.cpu_count <= 0:
+        raise argparse.ArgumentTypeError("Number of CPUs must be 1 or more.")
+
+    if args.max_steps <= 0:
+        raise argparse.ArgumentTypeError("Max steps must be 1 or more.")
+
     return args
 
 def change_env(env_config, args):

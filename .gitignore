@@ -8,3 +8,4 @@ raw_documentation
 *.pem
 _autoplay.mp4
 .idea
+*.egg-info

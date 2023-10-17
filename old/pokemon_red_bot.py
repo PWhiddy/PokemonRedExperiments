@@ -4,7 +4,7 @@ import torch
 import torchvision
 import hnswlib
 import numpy as np
-
+from baselines.constants import GB_FILENAME
 vec_dim = 1080 #4320 #1000
 num_elements = 5000 # max
 all_stored_frame_vecs = []
@@ -23,7 +23,7 @@ p.init_index(max_elements = num_elements, ef_construction = 100, M = 16)
 #p.set_ef(50) # ef should always be > k
 
 pyboy = PyBoy(
-        "./PokemonRed.gb",
+        GB_FILENAME,
         debugging=False,
         disable_input=False,
         # window_type="headless", # For unattended use, for example machine learning

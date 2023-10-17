@@ -5,7 +5,7 @@ import time
 import uuid
 from pathlib import Path
 import random
-
+from baselines.constants import GB_FILENAME
 sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
 run_steps = 1024*20
@@ -14,7 +14,7 @@ env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False, 
                 'action_freq': 24, 'init_state': './has_pokedex_nballs.state', 'max_steps': run_steps,
                 'print_rewards': True, 'save_video': True, 'session_path': sess_path,
-                'gb_path': './PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
+                'gb_path': GB_FILENAME, 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
 
 env = RedGymEnv(config=env_config)
