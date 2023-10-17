@@ -4,6 +4,6 @@ gputil
 hnswlib
 numpy
 seaborn
-pyboy
+python 
 tensorboard
 git+https://github.com/PWhiddy/mediapy.git
