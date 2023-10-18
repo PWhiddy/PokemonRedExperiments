@@ -1,0 +1,63 @@
+[project]
+name = "pokemonredexperiements"  # Required
+
+version = "0.0.1"
+
+description = "Train RL agents to play Pokemon Red!"
+
+readme = "README.md"
+
+requires-python = ">=3.10"
+
+license = {file = "LICENSE"}
+
+authors = [
+  {name = "Peter Whiddy"}
+]
+
+dependencies = [
+    'stable_baselines3',
+    'gymnasium',
+    'gym',
+    'scikit-image',
+    'scikit-learn',
+    'pandas',
+    'tqdm',
+    'torch',
+    'einops',
+    'hnswlib',
+    'numpy',
+    'opencv-python',
+    'seaborn',
+    'pyboy',
+    'mediapy',
+    'shimmy']
+
+# List additional groups of dependencies here (e.g. development
+# dependencies). Users will be able to install these using the "extras"
+# syntax, for example:
+#
+#   $ pip install sampleproject[dev]
+#
+# Similar to `dependencies` above, these must be valid existing
+# projects.
+
+
+[project.optional-dependencies]
+dev = ["check-manifest"]
+test = ["coverage"]
+
+[project.urls]
+"Homepage" = "https://github.com/PWhiddy/PokemonRedExperiments"
+
+[project.scripts]
+interactive_tutorial = "baselines.__main__:pretrained_interactive_tutorial"
+parallel_tutorial = "baselines.__main__:parallel_baseline_tutorial"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+

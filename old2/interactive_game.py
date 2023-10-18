@@ -1,11 +1,9 @@
 
-from baselines.red_gym_env import RedGymEnv
-from pyboy.utils import WindowEvent
-import time
+from baselines.poke_red_gym._red_gym_env import RedGymEnv
 import uuid
 from pathlib import Path
-import random
 from baselines.constants import GB_FILENAME
+
 sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
 run_steps = 1024*20

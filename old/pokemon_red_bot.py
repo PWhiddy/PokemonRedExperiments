@@ -1,10 +1,10 @@
 import sys
-from pyboy import PyBoy, WindowEvent
+from pyboy import PyBoy
 import torch
 import torchvision
 import hnswlib
 import numpy as np
-from baselines.constants import GB_FILENAME
+from src.baselines import GB_FILENAME
 vec_dim = 1080 #4320 #1000
 num_elements = 5000 # max
 all_stored_frame_vecs = []

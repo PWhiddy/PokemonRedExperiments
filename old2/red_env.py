@@ -2,14 +2,12 @@ import sys
 import uuid 
 
 import numpy as np
-from PIL.Image import init
-from numpy.core.numeric import roll
-from pyboy import PyBoy, WindowEvent
+from pyboy import PyBoy
 import hnswlib
 
 from rollout import Rollout
 
-from baselines.constants import GB_FILENAME
+from src.baselines import GB_FILENAME
 class RedEnv:
 
     def __init__(

@@ -9,5 +9,7 @@ raw_documentation
 _autoplay.mp4
 .idea
 *.egg-info
-user_sessions
-baselines/user_sessions
+.eggs
+.tox
+dist
+src/baselines/user_sessions
