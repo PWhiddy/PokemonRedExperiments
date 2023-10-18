@@ -15,10 +15,10 @@ updates_per_checkpoint = 4
 args = get_args('run_baseline.py', ep_length=run_steps, sess_path=sess_path)
 
 env_config = {
-                'headless': True, 'save_final_state': True, 'early_stop': False, 
+                'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../fast_text_start.state', 'max_steps': run_steps,
-                'print_rewards': True, 'save_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
+                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0,
             }
 
 env_config = change_env(env_config, args)
@@ -28,7 +28,7 @@ env_checker.check_env(env)
 
 learn_steps = 40
 file_name = 'poke_' #'best_12-7/poke_12_b'
-inference_only = True 
+inference_only = True
 
 if exists(file_name + '.zip'):
     print('\nloading checkpoint')
