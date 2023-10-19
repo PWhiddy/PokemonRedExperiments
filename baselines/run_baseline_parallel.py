@@ -8,6 +8,8 @@ from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
 from argparse_pokemon import *
+import glob
+import re
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -23,6 +25,23 @@ def make_env(rank, env_conf, seed=0):
         return env
     set_random_seed(seed)
     return _init
+
+def find_latest_session_and_poke():
+    all_folders = os.listdir()
+    session_folders = [folder for folder in all_folders if re.match(r'session_[0-9a-fA-F]{8}', folder)]
+
+    most_recent_time = 0
+    most_recent_session = None
+    most_recent_poke_file = None
+
+    for session_folder in session_folders:
+        poke_files = glob.glob(f"{session_folder}/poke_*_steps.zip")
+        for poke_file in poke_files:
+            mod_time = os.path.getmtime(poke_file)
+            if mod_time > most_recent_time:
+                most_recent_time = mod_time
+                most_recent_session = session_folder
+                most_recent_poke_file = poke_file[:-4]  # Remove '.zip' from the filename
 
 if __name__ == '__main__':
 
@@ -47,12 +66,12 @@ if __name__ == '__main__':
                                      name_prefix='poke')
     #env_checker.check_env(env)
     learn_steps = 40
-    file_name = 'session_e41c9eff/poke_38207488_steps' #'session_e41c9eff/poke_250871808_steps'
-    
+    session_folder, latest_poke_file = find_latest_session_and_poke()
+    #print('\n' + latest_poke_file)    
     #'session_bfdca25a/poke_42532864_steps' #'session_d3033abb/poke_47579136_steps' #'session_a17cc1f5/poke_33546240_steps' #'session_e4bdca71/poke_8945664_steps' #'session_eb21989e/poke_40255488_steps' #'session_80f70ab4/poke_58982400_steps'
-    if exists(file_name + '.zip'):
+    if latest_poke_file:
         print('\nloading checkpoint')
-        model = PPO.load(file_name, env=env)
+        model = PPO.load(latest_poke_file, env=env)
         model.n_steps = ep_length
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = ep_length
