@@ -43,6 +43,8 @@ def find_latest_session_and_poke():
                 most_recent_time = mod_time
                 most_recent_session = session_folder
                 most_recent_poke_file = poke_file[:-4]  # Remove '.zip' from the filename
+    return most_recent_session, most_recent_poke_file
+
 
 if __name__ == '__main__':
 
