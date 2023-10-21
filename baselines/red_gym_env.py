@@ -64,10 +64,10 @@ class RedGymEnv(Env):
         ]
         
         if self.extra_buttons:
-            self.valid_actions.append(
+            self.valid_actions.extend([
                 WindowEvent.PRESS_BUTTON_START,
                 WindowEvent.PASS
-            )
+            ])
 
         self.release_arrow = [
             WindowEvent.RELEASE_ARROW_DOWN,
@@ -229,7 +229,7 @@ class RedGymEnv(Env):
         # press button then release after some steps
         self.pyboy.send_input(self.valid_actions[action])
         # disable rendering when we don't need it
-        if not self.save_video:
+        if not self.save_video and self.headless:
             self.pyboy._rendering(False)
         for i in range(self.act_freq):
             # release action, so they are stateless
