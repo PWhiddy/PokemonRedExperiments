@@ -7,7 +7,6 @@ from pathlib import Path
 import uuid
 
 def get_args(usage_string=None, ep_length=None, sess_path=None, headless=True):
-    #Self-explanatory, gets the arguments given a few arguments that change depending on the file
     if sess_path == None:
         sess_path = f'session_{str(uuid.uuid4())[:8]}'
     description='Argument parser for env_config',

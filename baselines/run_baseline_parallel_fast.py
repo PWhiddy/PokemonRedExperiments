@@ -18,50 +18,48 @@ def make_env(rank, env_conf, seed=0):
     """
     def _init():
         env = RedGymEnv(env_conf)
-        #env.seed(seed + rank)
+        env.reset(seed=(seed + rank))
         return env
     set_random_seed(seed)
     return _init
 
 if __name__ == '__main__':
 
+
+    ep_length = 2048 * 10
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
-    ep_length = 2**16
 
     env_config = {
-                'headless': False, 'save_final_state': True, 'early_stop': False,
+                'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': True
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
+                'use_screen_explore': True, 'reward_scale': 4, 'extra_buttons': False,
+                'explore_weight': 3 # 2.5
             }
     
-    num_cpu = 1 #64 #46  # Also sets the number of episodes per training iteration
-    env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+    print(env_config)
     
+    num_cpu = 16  # Also sets the number of episodes per training iteration
+    env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+    
+    checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
+                                     name_prefix='poke')
     #env_checker.check_env(env)
-    file_name = 'session_4da05e87_main_good/poke_439746560_steps'
+    learn_steps = 40
+    # put a checkpoint here you want to start from
+    file_name = 'session_e41c9eff/poke_38207488_steps' 
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
-        model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
+        model = PPO.load(file_name, env=env)
         model.n_steps = ep_length
         model.n_envs = num_cpu
         model.rollout_buffer.buffer_size = ep_length
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998)
     
-    #keyboard.on_press_key("M", toggle_agent)
-    obs, info = env.reset()
-    while True:
-        action = 7 # pass action
-        try:
-            with open("agent_enabled.txt", "r") as f:
-                agent_enabled = f.readlines()[0].startswith("yes")
-        except:
-            agent_enabled = False
-        if agent_enabled:
-            action, _states = model.predict(obs, deterministic=False)
-        obs, rewards, terminated, truncated, info = env.step(action)
-        env.render()
+    for i in range(learn_steps):
+        model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)

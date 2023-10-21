@@ -40,10 +40,14 @@ class RedGymEnv(Env):
         self.video_interval = 256 * self.act_freq
         self.downsample_factor = 2
         self.frame_stacks = 3
+        self.explore_weight = 1 if 'explore_weight' not in config else config['explore_weight']
+        self.use_screen_explore = True if 'use_screen_explore' not in config else config['use_screen_explore']
         self.similar_frame_dist = config['sim_frame_dist']
-        self.reset_count = 0
+        self.reward_scale = 1 if 'reward_scale' not in config else config['reward_scale']
+        self.extra_buttons = False if 'extra_buttons' not in config else config['extra_buttons']
         self.instance_id = str(uuid.uuid4())[:8] if 'instance_id' not in config else config['instance_id']
         self.s_path.mkdir(exist_ok=True)
+        self.reset_count = 0
         self.all_runs = []
 
         # Set this in SOME subclasses
@@ -57,9 +61,13 @@ class RedGymEnv(Env):
             WindowEvent.PRESS_ARROW_UP,
             WindowEvent.PRESS_BUTTON_A,
             WindowEvent.PRESS_BUTTON_B,
-            WindowEvent.PRESS_BUTTON_START,
-            WindowEvent.PASS
         ]
+        
+        if self.extra_buttons:
+            self.valid_actions.extend([
+                WindowEvent.PRESS_BUTTON_START,
+                WindowEvent.PASS
+            ])
 
         self.release_arrow = [
             WindowEvent.RELEASE_ARROW_DOWN,
@@ -99,7 +107,9 @@ class RedGymEnv(Env):
 
         self.screen = self.pyboy.botsupport_manager().screen()
 
-        self.pyboy.set_emulation_speed(0 if config['headless'] else 6)
+        if not config['headless']:
+            self.pyboy.set_emulation_speed(6)
+            
         self.reset()
 
     def reset(self, seed=None):
@@ -107,8 +117,11 @@ class RedGymEnv(Env):
         # restart game, skipping credits
         with open(self.init_state, "rb") as f:
             self.pyboy.load_state(f)
-
-        self.init_knn()
+        
+        if self.use_screen_explore:
+            self.init_knn()
+        else:
+            self.init_map_mem()
 
         self.recent_memory = np.zeros((self.output_shape[1]*self.memory_height, 3), dtype=np.uint8)
         
@@ -149,6 +162,9 @@ class RedGymEnv(Env):
         # Initing index - the maximum number of elements should be known beforehand
         self.knn_index.init_index(
             max_elements=self.num_elements, ef_construction=100, M=16)
+        
+    def init_map_mem(self):
+        self.seen_coords = {}
 
     def render(self, reduce_res=True, add_memory=True, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
@@ -184,7 +200,10 @@ class RedGymEnv(Env):
         obs_flat = obs_memory[
             frame_start:frame_start+self.output_shape[0], ...].flatten().astype(np.float32)
 
-        self.update_frame_knn_index(obs_flat)
+        if self.use_screen_explore:
+            self.update_frame_knn_index(obs_flat)
+        else:
+            self.update_seen_coords()
             
         self.update_heal_reward()
 
@@ -209,6 +228,9 @@ class RedGymEnv(Env):
     def run_action_on_emulator(self, action):
         # press button then release after some steps
         self.pyboy.send_input(self.valid_actions[action])
+        # disable rendering when we don't need it
+        if not self.save_video and self.headless:
+            self.pyboy._rendering(False)
         for i in range(self.act_freq):
             # release action, so they are stateless
             if i == 8:
@@ -218,10 +240,12 @@ class RedGymEnv(Env):
                 if action > 3 and action < 6:
                     # release button 
                     self.pyboy.send_input(self.release_button[action - 4])
-                if action == WindowEvent.PRESS_BUTTON_START:
+                if self.valid_actions[action] == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
             if self.save_video and not self.fast_video:
                 self.add_video_frame()
+            if i == self.act_freq-1:
+                self.pyboy._rendering(True)
             self.pyboy.tick()
         if self.save_video and self.fast_video:
             self.add_video_frame()
@@ -235,12 +259,16 @@ class RedGymEnv(Env):
         y_pos = self.read_m(0xD361)
         map_n = self.read_m(0xD35E)
         levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        if self.use_screen_explore:
+            expl = ('frames', self.knn_index.get_current_count())
+        else:
+            expl = ('coord_count', len(self.seen_coords))
         self.agent_stats.append({
             'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n,
             'last_action': action,
             'pcount': self.read_m(0xD163), 'levels': levels, 'ptypes': self.read_party(),
             'hp': self.read_hp_fraction(),
-            'frames': self.knn_index.get_current_count(),
+            expl[0]: expl[1],
             'deaths': self.died_count, 'badge': self.get_badges(),
             'event': self.progress_reward['event'], 'healr': self.total_healing_rew
         })
@@ -260,10 +288,23 @@ class RedGymEnv(Env):
         else:
             # check for nearest frame and add if current 
             labels, distances = self.knn_index.knn_query(frame_vec, k = 1)
-            if distances[0] > self.similar_frame_dist:
+            if distances[0][0] > self.similar_frame_dist:
+                # print(f"distances[0][0] : {distances[0][0]} similar_frame_dist : {self.similar_frame_dist}")
                 self.knn_index.add_items(
                     frame_vec, np.array([self.knn_index.get_current_count()])
                 )
+    
+    def update_seen_coords(self):
+        x_pos = self.read_m(0xD362)
+        y_pos = self.read_m(0xD361)
+        map_n = self.read_m(0xD35E)
+        coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
+        if self.get_levels_sum() >= 22 and not self.levels_satisfied:
+            self.levels_satisfied = True
+            self.base_explore = len(self.seen_coords)
+            self.seen_coords = {}
+        
+        self.seen_coords[coord_string] = self.step_count
 
     def update_reward(self):
         # compute reward
@@ -286,7 +327,10 @@ class RedGymEnv(Env):
     def group_rewards(self):
         prog = self.progress_reward
         # these values are only used by memory
-        return (prog['level'] * 100, self.read_hp_fraction()*2000, prog['explore'] * 160)#(prog['events'], 
+        return (prog['level'] * 100 / self.reward_scale, 
+                self.read_hp_fraction()*2000, 
+                prog['explore'] * 150 / (self.explore_weight * self.reward_scale))
+               #(prog['events'], 
                # prog['levels'] + prog['party_xp'], 
                # prog['explore'])
 
@@ -394,9 +438,10 @@ class RedGymEnv(Env):
         return self.max_level_rew
     
     def get_knn_reward(self):
-        pre_rew = 0.004
-        post_rew = 0.01
-        cur_size = self.knn_index.get_current_count()
+        
+        pre_rew = self.explore_weight * 0.005
+        post_rew = self.explore_weight * 0.01
+        cur_size = self.knn_index.get_current_count() if self.use_screen_explore else len(self.seen_coords)
         base = (self.base_explore if self.levels_satisfied else cur_size) * pre_rew
         post = (cur_size if self.levels_satisfied else 0) * post_rew
         return base + post
@@ -418,10 +463,25 @@ class RedGymEnv(Env):
                 self.total_healing_rew += heal_amount * 4
             else:
                 self.died_count += 1
-    
+                
     def get_all_events_reward(self):
-        return max(sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)]) - 13, 0)
-  
+        # adds up all event flags, exclude museum ticket
+        event_flags_start = 0xD747
+        event_flags_end = 0xD886
+        museum_ticket = (0xD754, 0)
+        base_event_flags = 13
+        return max(
+            sum(
+                [
+                    self.bit_count(self.read_m(i))
+                    for i in range(event_flags_start, event_flags_end)
+                ]
+            )
+            - base_event_flags
+            - int(self.read_bit(museum_ticket[0], museum_ticket[1])),
+        0,
+    )
+
     def get_game_state_reward(self, print_stats=False):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
@@ -448,17 +508,17 @@ class RedGymEnv(Env):
         '''
         
         state_scores = {
-            'event': self.update_max_event_rew(),  
-            #'party_xp': 0.1*sum(poke_xps),
-            'level': self.get_levels_reward(), 
-            'heal': self.total_healing_rew,
-            'op_lvl': self.update_max_op_level(),
-            'dead': -0.1*self.died_count,
-            'badge': self.get_badges() * 2,
-            #'op_poke': self.max_opponent_poke * 800,
-            #'money': money * 3,
-            #'seen_poke': seen_poke_count * 400,
-            'explore': self.get_knn_reward()
+            'event': self.reward_scale*self.update_max_event_rew(),  
+            #'party_xp': self.reward_scale*0.1*sum(poke_xps),
+            'level': self.reward_scale*self.get_levels_reward(), 
+            'heal': self.reward_scale*self.total_healing_rew,
+            'op_lvl': self.reward_scale*self.update_max_op_level(),
+            'dead': self.reward_scale*-0.1*self.died_count,
+            'badge': self.reward_scale*self.get_badges() * 5,
+            #'op_poke': self.reward_scale*self.max_opponent_poke * 800,
+            #'money': self.reward_scale* money * 3,
+            #'seen_poke': self.reward_scale * seen_poke_count * 400,
+            'explore': self.reward_scale * self.get_knn_reward()
         }
         
         return state_scores
