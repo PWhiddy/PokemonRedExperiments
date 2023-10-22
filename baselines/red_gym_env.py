@@ -388,21 +388,30 @@ class RedGymEnv(Env):
             print(f'\r{prog_string}', end='', flush=True)
         
         if self.step_count % 50 == 0:
-            plt.imsave(
-                self.s_path / Path(f'curframe_{self.instance_id}.jpeg'), 
-                self.render(reduce_res=False))
+            try:
+                plt.imsave(
+                    self.s_path / Path(f'curframe_{self.instance_id}.jpeg'), 
+                    self.render(reduce_res=False))
+            except Exception as e:
+                    print(f"Error saving iamge: {e}")
 
         if self.print_rewards and done:
             print('', flush=True)
             if self.save_final_state:
                 fs_path = self.s_path / Path('final_states')
                 fs_path.mkdir(exist_ok=True)
-                plt.imsave(
-                    fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_small.jpeg'), 
-                    obs_memory)
-                plt.imsave(
-                    fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg'), 
-                    self.render(reduce_res=False))
+                try:
+                    plt.imsave(
+                        fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_small.jpeg'), 
+                        obs_memory)
+                except Exception as e:
+                    print(f"Error saving image: {e}")
+                try:
+                    plt.imsave(
+                        fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg'), 
+                        self.render(reduce_res=False))
+                except Exception as e:
+                    print(f"Error saving iamge: {e}")
 
         if self.save_video and done:
             self.full_frame_writer.close()
@@ -526,9 +535,12 @@ class RedGymEnv(Env):
     def save_screenshot(self, name):
         ss_dir = self.s_path / Path('screenshots')
         ss_dir.mkdir(exist_ok=True)
-        plt.imsave(
-            ss_dir / Path(f'frame{self.instance_id}_r{self.total_reward:.4f}_{self.reset_count}_{name}.jpeg'), 
-            self.render(reduce_res=False))
+        try:
+            plt.imsave(
+                ss_dir / Path(f'frame{self.instance_id}_r{self.total_reward:.4f}_{self.reset_count}_{name}.jpeg'), 
+                self.render(reduce_res=False))
+        except Exception as e:
+                    print(f"Error saving iamge: {e}")
     
     def update_max_op_level(self):
         #opponent_level = self.read_m(0xCFE8) - 5 # base level
