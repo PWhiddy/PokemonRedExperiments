@@ -68,3 +68,6 @@ if __name__ == '__main__':
             action, _states = model.predict(obs, deterministic=False)
         obs, rewards, terminated, truncated, info = env.step(action)
         env.render()
+        if truncated:
+            break
+    env.close()
