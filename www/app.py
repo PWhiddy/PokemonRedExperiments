@@ -1,49 +1,39 @@
 import os
 import json
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from werkzeug.utils import secure_filename
 import hashlib
 from datetime import datetime
-from flask import send_from_directory
-import re  # Import the regular expression module
+import re
 
 app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = './uploads'
+app.config['METADATA_FILE'] = './uploads/metadata.txt'
 
-# In-memory list to hold file metadata
+# Initialize the files_data list with metadata on startup
 files_data = []
+@app.route('/uploads')
+def list_files():
+    """Display a list of uploaded files for download."""
+    read_metadata()
+    sorted_files = sorted(files_data, key=lambda x: x.get('steps', 0), reverse=True)
+    return render_template('list_files.html', files=sorted_files)
 
-@app.route('/metadata.txt')
-def metadata():
-    try:
-        return send_from_directory('./uploads', 'metadata.txt')
-    except FileNotFoundError:
-        return "metadata.txt not found.", 404
-
-@app.route('/highest_steps')
-def highest_steps():
-    read_metadata()  # Read metadata from file
-
-    if not files_data:
-        return "No files uploaded.", 404
-    
-    highest_steps_file = max(files_data, key=lambda x: x['steps'])
-    directory, filename = os.path.split(highest_steps_file['filepath'])
-    return send_from_directory(directory=directory, filename=filename)
-
-# Function to read metadata from file
 def read_metadata():
+    """Read metadata from the metadata file."""
     global files_data
     try:
-        with open('./uploads/metadata.txt', 'r') as f:
+        with open(app.config['METADATA_FILE'], 'r') as f:
             files_data = json.load(f)
-    except:
+    except FileNotFoundError:
         files_data = []
+    except Exception as e:
+        print(f"Error reading metadata: {str(e)}")
 
-# Function to write metadata to file
 def write_metadata(data):
-    with open('./uploads/metadata.txt', 'w') as f:
+    """Write metadata to the metadata file."""
+    with open(app.config['METADATA_FILE'], 'w') as f:
         json.dump(data, f)
 
 # Read metadata from file on startup
@@ -51,27 +41,30 @@ read_metadata()
 
 @app.route('/')
 def index():
-    read_metadata()  # Read metadata from file
-    sorted_files = sorted(files_data, key=lambda x: x['steps'], reverse=True)
+    """Display a list of uploaded files with metadata sorted by steps."""
+    read_metadata()
+    sorted_files = sorted(files_data, key=lambda x: x.get('steps', 0), reverse=True)
     return render_template('index.html', files=sorted_files)
-
-# ...
 
 @app.route('/uploads/<filename>')
 def download_file(filename):
+    """Download an uploaded file by providing the filename."""
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    """Upload a file, extract metadata, and save it with metadata."""
     global files_data
 
     uploaded_file = request.files['file']
+
+    # Generate a unique filename using timestamp and SHA1 hash
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     sha1 = hashlib.sha1(uploaded_file.read()).hexdigest()[:10]
     uploaded_file.seek(0)
     original_filename = secure_filename(uploaded_file.filename)
 
-    # Extract the 'steps' from the original filename
+    # Extract the 'steps' from the original filename using regex
     match = re.search(r'poke_(\d+)_steps\.zip', original_filename)
     if match:
         steps = int(match.group(1))
@@ -82,7 +75,7 @@ def upload_file():
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
     # Check if a file with the same 'steps' value already exists
-    existing_entry = next((entry for entry in files_data if entry['steps'] == steps), None)
+    existing_entry = next((entry for entry in files_data if entry.get('steps') == steps), None)
 
     if existing_entry:
         # Update the existing entry
@@ -99,11 +92,11 @@ def upload_file():
 
     # Sort the metadata by 'steps' in reverse order
     files_data.sort(key=lambda x: x.get('steps', 0), reverse=True)
+
+    # Write metadata to the metadata file
     write_metadata(files_data)
 
     return jsonify({'success': True})
 
-
 if __name__ == '__main__':
     app.run(debug=True)
-
