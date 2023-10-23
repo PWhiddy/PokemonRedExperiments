@@ -44,13 +44,6 @@ This version still needs some tuning, but it can clear the first gym in a small 
 2. Run:  
 ```python run_baseline_parallel_fast.py```
 
-
-### Original Version
-Can be used to reproduce the original results in the video. Not recommended otherwise. This can use up to ~100G of RAM. You can decrease this by reducing the `num_cpu` or `ep_length`, but it may affect the results. Also, the model behavior may become degenerate for up to the first 50 training iterations or so before starting to improve. This could likely be fixed with better hyperparameters but I haven't had the time or resources to sweep these.
-1. Previous steps 1-3
-2. Run:  
-```python run_baseline_parallel.py```
-
 ## Tracking Training Progress 📈 
 
 You can view the current state of each emulator, plot basic stats, and compare to previous runs using the `VisualizeProgress.ipynb` notebook.
