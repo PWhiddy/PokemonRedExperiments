@@ -57,6 +57,10 @@ def index():
 
 # ...
 
+@app.route('/uploads/<filename>')
+def download_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     global files_data
@@ -74,18 +78,31 @@ def upload_file():
     else:
         steps = None  # Default value if not found
 
-    filename = f"poke_{steps}_steps_{sha1}_{timestamp}"
+    filename = f"poke_{steps}_steps_{sha1}_{timestamp}.zip"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
 
+    # Check if a file with the same 'steps' value already exists
+    existing_entry = next((entry for entry in files_data if entry['steps'] == steps), None)
+
+    if existing_entry:
+        # Update the existing entry
+        existing_entry['filename'] = filename
+        existing_entry['filepath'] = filepath
+        existing_entry['timestamp'] = timestamp
+    else:
+        # Create a new entry
+        file_info = {'filename': filename, 'filepath': filepath, 'timestamp': timestamp, 'steps': steps}
+        files_data.append(file_info)
+
+    # Save the uploaded file to the specified filepath
     uploaded_file.save(filepath)
 
-    file_info = {'filename': filename, 'filepath': filepath, 'timestamp': timestamp, 'steps': steps}
-    files_data.append(file_info)
-
+    # Sort the metadata by 'steps' in reverse order
     files_data.sort(key=lambda x: x.get('steps', 0), reverse=True)
     write_metadata(files_data)
 
     return jsonify({'success': True})
+
 
 if __name__ == '__main__':
     app.run(debug=True)
