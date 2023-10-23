@@ -1,15 +1,18 @@
-# Train RL agents to play Pokemon Red!
-
-<a href="https://youtu.be/DcYLT37ImBY">
-  <img src="/assets/poke_map.gif?raw=true">
-</a>
-
+# Train RL agents to play Pokemon Red
   
-## Watch the [Video on Youtube!](https://youtu.be/DcYLT37ImBY)  
+## Watch the Video on Youtube! 
 
-<a href="https://youtu.be/DcYLT37ImBY">
-  <img src="/assets/Pokemon YT5 FFFFinal.jpg?raw=true" width="256">
-</a>
+<p float="left">
+  <a href="https://youtu.be/DcYLT37ImBY">
+    <img src="/assets/Pokemon YT5 FFFFinal.jpg?raw=true" height="192">
+  </a>
+  <a href="https://youtu.be/DcYLT37ImBY">
+    <img src="/assets/poke_map.gif?raw=true" height="192">
+  </a>
+</p>
+
+## Join the discord server
+[![Join the Discord server!](https://invidget.switchblade.xyz/RvadteZk4G)](http://discord.gg/RvadteZk4G)
   
 ## Running the Pretrained Model Interactively 🎮  
 🐍 Python 3.10 is recommended. Other versions may work but have not been tested.   
@@ -52,3 +55,8 @@ You can view the current state of each emulator, plot basic stats, and compare t
 
 ## Extra 🐜
 Map visualization code can be found in `visualization/` directory.
+
+## Supporting Libraries
+Check out these awesome projects:
+- [PyBoy](https://github.com/Baekalfen/PyBoy)
+- [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3)
