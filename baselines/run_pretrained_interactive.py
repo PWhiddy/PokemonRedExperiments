@@ -26,7 +26,7 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == '__main__':
 
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
-    ep_length = 2**16
+    ep_length = 2**23
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
@@ -41,17 +41,9 @@ if __name__ == '__main__':
     #env_checker.check_env(env)
     file_name = 'session_4da05e87_main_good/poke_439746560_steps'
     
-    if exists(file_name + '.zip'):
-        print('\nloading checkpoint')
-        model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
-        model.n_steps = ep_length
-        model.n_envs = num_cpu
-        model.rollout_buffer.buffer_size = ep_length
-        model.rollout_buffer.n_envs = num_cpu
-        model.rollout_buffer.reset()
-    else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length, batch_size=512, n_epochs=1, gamma=0.999)
-    
+    print('\nloading checkpoint')
+    model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
+        
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
     while True:
@@ -65,3 +57,6 @@ if __name__ == '__main__':
             action, _states = model.predict(obs, deterministic=False)
         obs, rewards, terminated, truncated, info = env.step(action)
         env.render()
+        if truncated:
+            break
+    env.close()

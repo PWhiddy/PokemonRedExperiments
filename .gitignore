@@ -10,3 +10,5 @@ _autoplay.mp4
 session_*
 curframe_*
 .history
+.env
+PokemonRed.gb.state
