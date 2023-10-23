@@ -60,7 +60,7 @@ platformdirs==3.10.0
 prompt-toolkit==3.0.38
 ptyprocess==0.7.0
 pure-eval==0.2.2
-pyboy==1.6.3
+pyboy==1.6.4
 Pygments==2.15.1
 pyparsing==3.1.0
 PySDL2==0.9.15
