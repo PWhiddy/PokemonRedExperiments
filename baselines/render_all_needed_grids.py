@@ -8,7 +8,6 @@ from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
-from argparse_pokemon import *
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -29,14 +28,12 @@ def run_save(save):
     save = Path(save)
     ep_length = 2048 * 8
     sess_path = f'grid_renders/session_{save.stem}'
-    args = get_args(usage_string="render_all_needed_grids.py save", ep_length=ep_length, sess_path=sess_path)
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': True, 'fast_video': False, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
-    env_config = change_env(env_config, args)
     num_cpu = 40  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
