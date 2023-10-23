@@ -34,6 +34,8 @@ Note: the Pokemon.gb file MUST be in the main directory and your current directo
 
 ## Training the Model 🏋️ 
 
+<img src="/assets/grid1.png?raw=true" height="156">
+
 ### 10-21-23: Updated Version! 
 
 This version still needs some tuning, but it can clear the first gym in a small fraction of the time and compute resources. It can work with as few as 16 cores and ~20G of RAM. This is the place for active development and updates! 
