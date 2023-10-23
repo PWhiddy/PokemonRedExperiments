@@ -52,7 +52,7 @@ You can view the current state of each emulator, plot basic stats, and compare t
 Map visualization code can be found in `visualization/` directory.
 
 ## Supporting Libraries
-Check out these awesome projects:
+Check out these awesome projects!
 ### [PyBoy](https://github.com/Baekalfen/PyBoy)
 <a href="https://github.com/Baekalfen/PyBoy">
   <img src="/assets/pyboy.svg" height="64">
