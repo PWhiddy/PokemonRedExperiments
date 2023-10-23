@@ -53,5 +53,12 @@ Map visualization code can be found in `visualization/` directory.
 
 ## Supporting Libraries
 Check out these awesome projects:
-- [PyBoy](https://github.com/Baekalfen/PyBoy)
-- [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3)
+### [PyBoy](https://github.com/Baekalfen/PyBoy)
+<a href="https://github.com/Baekalfen/PyBoy">
+  <img src="/assets/pyboy.svg" height="64">
+</a>
+
+### [Stable Baselines 3](https://github.com/DLR-RM/stable-baselines3)
+<a href="https://github.com/DLR-RM/stable-baselines3">
+  <img src="/assets/sblogo.png" height="64">
+</a>
