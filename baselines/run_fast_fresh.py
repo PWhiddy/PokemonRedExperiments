@@ -31,25 +31,25 @@ if __name__ == '__main__':
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../has_name.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'reward_scale': 4, 'extra_buttons': False,
-                'explore_weight': 3 # 2.5
+                'explore_weight': 4
             }
     
     print(env_config)
     
-    num_cpu = 16  # Also sets the number of episodes per training iteration
+    num_cpu = 12  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='poke')
     #env_checker.check_env(env)
     learn_steps = 40
-    # put a checkpoint here you want to start from
-    #file_name = 'session_e41c9eff/poke_38207488_steps'
-    file_name = 'session_0f153f8e/restored_run_609'
+
+    #file_name = 'session_e41c9eff/poke_38207488_steps' #original?
+    file_name = 'session_0c8ac377_loop/poke_1474560_steps'
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
@@ -63,4 +63,4 @@ if __name__ == '__main__':
         model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998)
     
     for i in range(learn_steps):
-        model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)
+        model.learn(total_timesteps=(ep_length)*num_cpu*2000, callback=checkpoint_callback)
