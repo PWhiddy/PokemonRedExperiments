@@ -1,4 +1,5 @@
 from os.path import exists
+import os
 from pathlib import Path
 import uuid
 from red_gym_env import RedGymEnv
@@ -23,8 +24,42 @@ def make_env(rank, env_conf, seed=0):
     set_random_seed(seed)
     return _init
 
+#Allows user to select checkpoint to use
+def choose_checkpoint():
+    session_list = []
+    base_dir = Path(__file__).resolve().parent #__name__?
+    for x in os.listdir(base_dir):
+        if 'session' in x:
+            session_list.append({"session": x, "modified": os.path.getmtime(f"{base_dir}/{x}")})
+    ordered_session_list = sorted(session_list, key=lambda x: x["modified"], reverse=True)
+    ordered_session_list.append({"session": "None", "modified": "0"})
+
+    print("Sessions (1 being the most recent):")
+    for index, each in enumerate(ordered_session_list):
+        print(f'{index + 1}: {each["session"]}')
+
+    session_selection = int(input("Pick a session number to use (default is none): ") or 0)
+
+    session = ordered_session_list[session_selection - 1]["session"]
+
+    step_list = []
+    for x in os.listdir(f"{base_dir}/{session}"):
+        if "_steps.zip" in x:
+            step_list.append(x)
+    step_list = sorted(step_list, key=lambda x:x[5:x.index("_steps")], reverse=True)
+    if step_list:
+        step = step_list[0][0:-4]
+        path_name = f"{session}/{step}"
+    else:
+        print("\n\n\nNo checkpoint found, starting training from scratch.\n\n\n")
+        path_name = ""
+    return(path_name)
+
+
 if __name__ == '__main__':
 
+    # put a checkpoint here you want to start from
+    file_name = choose_checkpoint() 
 
     ep_length = 2048 * 10
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
@@ -47,8 +82,7 @@ if __name__ == '__main__':
                                      name_prefix='poke')
     #env_checker.check_env(env)
     learn_steps = 40
-    # put a checkpoint here you want to start from
-    file_name = 'session_e41c9eff/poke_38207488_steps' 
+    
     
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
