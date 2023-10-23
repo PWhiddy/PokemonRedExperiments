@@ -4,7 +4,7 @@
 
 <p float="left">
   <a href="https://youtu.be/DcYLT37ImBY">
-    <img src="/assets/Pokemon YT5 FFFFinal.jpg?raw=true" height="192">
+    <img src="/assets/youtube.jpg?raw=true" height="192">
   </a>
   <a href="https://youtu.be/DcYLT37ImBY">
     <img src="/assets/poke_map.gif?raw=true" height="192">
@@ -34,7 +34,7 @@ Note: the Pokemon.gb file MUST be in the main directory and your current directo
 
 ## Training the Model 🏋️ 
 
-<img src="/assets/grid1.png?raw=true" height="156">
+<img src="/assets/grid.png?raw=true" height="156">
 
 ### 10-21-23: Updated Version! 
 
