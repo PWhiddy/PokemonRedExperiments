@@ -18,6 +18,32 @@ import pandas as pd
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
+class LoopDetector:
+    def __init__(self, window_size=100):
+        self.window = []
+        self.window_size = window_size
+
+    def update(self, x_pos, y_pos):
+        """Update the sliding window with the latest position."""
+        # Check if the new position is the same as the last position in the window
+        if self.window and self.window[-1] == (x_pos, y_pos):
+            return
+        
+        self.window.append((x_pos, y_pos))
+        if len(self.window) > self.window_size:
+            self.window.pop(0)
+
+    def detect_loop(self):
+        """Dynamically detect repetitive patterns within the window."""
+        max_loop_length = len(self.window) // 2  # Up to half the window size
+        for loop_length in range(2, max_loop_length + 1):
+            for i in range(len(self.window) - loop_length + 1):
+                pattern = self.window[i:i+loop_length]
+                repetitions = self.window.count(tuple(pattern))
+                if repetitions > len(self.window) / loop_length:
+                    return True
+        return False
+
 class RedGymEnv(Env):
 
 
@@ -49,6 +75,10 @@ class RedGymEnv(Env):
         self.s_path.mkdir(exist_ok=True)
         self.reset_count = 0
         self.all_runs = []
+
+        self.loop_detector = LoopDetector(window_size=100)
+        self.x_pos = 0
+        self.y_pos = 0
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
@@ -209,6 +239,11 @@ class RedGymEnv(Env):
 
         new_reward, new_prog = self.update_reward()
         
+        self.loop_detector.update(self.x_pos, self.y_pos)
+        loop_penalty = -10
+        if self.loop_detector.detect_loop():
+            new_reward += loop_penalty
+
         self.last_health = self.read_hp_fraction()
 
         # shift over short term reward memory
@@ -255,8 +290,8 @@ class RedGymEnv(Env):
         self.model_frame_writer.add_image(self.render(reduce_res=True, update_mem=False))
     
     def append_agent_stats(self, action):
-        x_pos = self.read_m(0xD362)
-        y_pos = self.read_m(0xD361)
+        self.x_pos = self.read_m(0xD362)
+        self.y_pos = self.read_m(0xD361)
         map_n = self.read_m(0xD35E)
         levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         if self.use_screen_explore:
@@ -264,7 +299,7 @@ class RedGymEnv(Env):
         else:
             expl = ('coord_count', len(self.seen_coords))
         self.agent_stats.append({
-            'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n,
+            'step': self.step_count, 'x': self.x_pos, 'y': self.y_pos, 'map': map_n,
             'last_action': action,
             'pcount': self.read_m(0xD163), 'levels': levels, 'ptypes': self.read_party(),
             'hp': self.read_hp_fraction(),
@@ -393,7 +428,7 @@ class RedGymEnv(Env):
                     self.s_path / Path(f'curframe_{self.instance_id}.jpeg'), 
                     self.render(reduce_res=False))
             except Exception as e:
-                    print(f"Error saving iamge: {e}")
+                    print(f"Error saving image: {e}")
 
         if self.print_rewards and done:
             print('', flush=True)
@@ -411,7 +446,7 @@ class RedGymEnv(Env):
                         fs_path / Path(f'frame_r{self.total_reward:.4f}_{self.reset_count}_full.jpeg'), 
                         self.render(reduce_res=False))
                 except Exception as e:
-                    print(f"Error saving iamge: {e}")
+                    print(f"Error saving image: {e}")
 
         if self.save_video and done:
             self.full_frame_writer.close()
@@ -540,7 +575,7 @@ class RedGymEnv(Env):
                 ss_dir / Path(f'frame{self.instance_id}_r{self.total_reward:.4f}_{self.reset_count}_{name}.jpeg'), 
                 self.render(reduce_res=False))
         except Exception as e:
-                    print(f"Error saving iamge: {e}")
+                    print(f"Error saving image: {e}")
     
     def update_max_op_level(self):
         #opponent_level = self.read_m(0xCFE8) - 5 # base level
@@ -558,7 +593,10 @@ class RedGymEnv(Env):
     def read_hp_fraction(self):
         hp_sum = sum([self.read_hp(add) for add in [0xD16C, 0xD198, 0xD1C4, 0xD1F0, 0xD21C, 0xD248]])
         max_hp_sum = sum([self.read_hp(add) for add in [0xD18D, 0xD1B9, 0xD1E5, 0xD211, 0xD23D, 0xD269]])
-        return hp_sum / max_hp_sum
+        if max_hp_sum > 0:
+            return hp_sum / max_hp_sum
+        else:
+            return 0
 
     def read_hp(self, start):
         return 256 * self.read_m(start) + self.read_m(start+1)
