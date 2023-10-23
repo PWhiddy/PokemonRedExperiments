@@ -4,7 +4,7 @@
 
 <p float="left">
   <a href="https://youtu.be/DcYLT37ImBY">
-    <img src="/assets/Pokemon YT5 FFFFinal.jpg?raw=true" height="192">
+    <img src="/assets/youtube.jpg?raw=true" height="192">
   </a>
   <a href="https://youtu.be/DcYLT37ImBY">
     <img src="/assets/poke_map.gif?raw=true" height="192">
@@ -34,7 +34,7 @@ Note: the Pokemon.gb file MUST be in the main directory and your current directo
 
 ## Training the Model 🏋️ 
 
-<img src="/assets/grid1.png?raw=true" height="156">
+<img src="/assets/grid.png?raw=true" height="156">
 
 ### 10-21-23: Updated Version! 
 
@@ -43,13 +43,6 @@ This version still needs some tuning, but it can clear the first gym in a small 
 1. Previous steps 1-3
 2. Run:  
 ```python run_baseline_parallel_fast.py```
-
-
-### Original Version
-Can be used to reproduce the original results in the video. Not recommended otherwise. This can use up to ~100G of RAM. You can decrease this by reducing the `num_cpu` or `ep_length`, but it may affect the results. Also, the model behavior may become degenerate for up to the first 50 training iterations or so before starting to improve. This could likely be fixed with better hyperparameters but I haven't had the time or resources to sweep these.
-1. Previous steps 1-3
-2. Run:  
-```python run_baseline_parallel.py```
 
 ## Tracking Training Progress 📈 
 
