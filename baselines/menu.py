@@ -63,7 +63,7 @@ def parse_args():
     return parser.parse_args()
 
 def show_menu(selected_checkpoint):
-    while True:  # Create an infinite loop
+    while True: 
         session_dict, downloaded_checkpoints = list_all_sessions_and_pokes()
         if not session_dict:
             print("No checkpoints found.")
@@ -74,15 +74,18 @@ def show_menu(selected_checkpoint):
         for i, (session, largest_step) in enumerate(session_dict.items()):
             print(f"  {i + 1}. {session}/poke-{largest_step}_steps.zip")
 
-        print("\nDownloaded checkpoints:")
+        print("\n  Downloaded checkpoints:")
         for i, checkpoint in enumerate(downloaded_checkpoints, start=downloaded_checkpoint_count + 1):
             print(f"  {i}. {checkpoint}")
+    
+        print("\nDefault Runs:")
+        matching_files = [file for file in os.listdir(os.getcwd()) if file.startswith("run_") and file.endswith(".py")]
+        for i, file in enumerate(matching_files, start=downloaded_checkpoint_count + 1):
+            print(f"  {i}. {file}")
 
-        print("\n  95. Future-Delete Saved Files")
-        print("  96. Resume from remote")
-        print("  97. Upload to remote")
-        print("  98. Exit")
-        print("  99. Start a new run")
+        #print("\n  95. Future-Delete Saved Files")
+        print("\n  98. Resume from remote")
+        print("  99. Upload to remote")
         menu_selection = input("Enter the number of the menu option: ")
 
         if menu_selection.isdigit():
@@ -91,22 +94,21 @@ def show_menu(selected_checkpoint):
                 selected_session = list(session_dict.keys())[selection - 1]
                 selected_step = session_dict[selected_session]
                 selected_checkpoint = f"{selected_session}/poke_{selected_step}_steps.zip"
-                return selected_checkpoint  # Return the selected checkpoint and exit the loop
+                return selected_checkpoint  
             elif downloaded_checkpoint_count + 1 <= selection <= downloaded_checkpoint_count + len(downloaded_checkpoints):
                 selected_checkpoint = os.path.join('downloaded_checkpoints', downloaded_checkpoints[selection - downloaded_checkpoint_count - 1])
-                return selected_checkpoint  # Return the selected checkpoint and exit the loop
-            elif menu_selection == '96':
+                return selected_checkpoint
+            elif downloaded_checkpoint_count + len(downloaded_checkpoints) + 1 <= selection <= downloaded_checkpoint_count + len(downloaded_checkpoints) + len(matching_files):
+                selected_run = matching_files[selection - downloaded_checkpoint_count - len(downloaded_checkpoints) - 1]
+                run_script = f"python3 {selected_run}"
+                subprocess.run(run_script, shell=True)   
+            elif menu_selection == '98':
                 selected_checkpoint = remote_actions()
                 if selected_checkpoint:
-                    return selected_checkpoint  # Return the selected checkpoint and exit the loop
-            elif menu_selection == '97':
+                    return selected_checkpoint
+            elif menu_selection == '99':
                 selection = int(input("Enter your selection for remote upload: "))
                 upload(selection, session_dict)
-            elif menu_selection == '98':
-                print("Exiting the menu.")
-                return None  # Exit the loop and return None
-            elif menu_selection == '99':
-                return None  # Exit the loop and return None
             else:
                 print("Invalid selection.")
         else:
@@ -130,7 +132,7 @@ def list_all_sessions_and_pokes():
     return sorted_session_dict, downloaded_checkpoints
 
 def remote_actions():
-    BASE_URL = DEFAULT_BASE_URL  # Use the default URL
+    BASE_URL = DEFAULT_BASE_URL
 
     response = requests.get(f"{BASE_URL}/uploads/metadata.txt")
 
@@ -198,8 +200,6 @@ def upload(selection, session_dict):
     except (ValueError, IndexError):
         print("Invalid selection")
 
-# ... (previous code)
-
 def main(selected_checkpoint):
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
     ep_length = 2048 * 10
@@ -230,6 +230,7 @@ def main(selected_checkpoint):
 
 if __name__ == '__main__':
     selected_checkpoint = None
-    selected_checkpoint = show_menu(selected_checkpoint)  # Update the selected_checkpoint
-    main(selected_checkpoint)  # Pass the selected_checkpoint to main
+    selected_checkpoint = show_menu(selected_checkpoint)
+    #main(selected_checkpoint)  
+
 
