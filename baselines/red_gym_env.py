@@ -10,6 +10,7 @@ import numpy as np
 from einops import rearrange
 import matplotlib.pyplot as plt
 from skimage.transform import resize
+from skimage.transform import downscale_local_mean
 from pyboy import PyBoy
 import hnswlib
 import mediapy as media
@@ -169,7 +170,7 @@ class RedGymEnv(Env):
     def render(self, reduce_res=True, add_memory=True, update_mem=True):
         game_pixels_render = self.screen.screen_ndarray() # (144, 160, 3)
         if reduce_res:
-            game_pixels_render = (255*resize(game_pixels_render, self.output_shape)).astype(np.uint8)
+            game_pixels_render = (255*downscale_local_mean(game_pixels_render, (4,4,1))).astype(np.uint8)
             if update_mem:
                 self.recent_frames[0] = game_pixels_render
             if add_memory:
