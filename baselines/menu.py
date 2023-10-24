@@ -15,55 +15,28 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 DEFAULT_BASE_URL = "http://127.0.0.1:5000"
 directory_path = 'downloaded_checkpoints'
+
 if not os.path.exists(directory_path):
     os.makedirs(directory_path)
-    #print(f"Directory '{directory_path}' created.")
-#else:
-    #print(f"Directory '{directory_path}' already exists.")
-
-'''
-import subprocess
-
-# Define the Git branch you want to update
-git_branch = "your_branch_name"
-
-# Define the Git command to update the branch
-git_command = f"git pull origin {git_branch}"
-
-try:
-    # Run the Git command
-    subprocess.run(git_command, shell=True, check=True)
-    print(f"Branch {git_branch} updated successfully.")
-except subprocess.CalledProcessError as e:
-    print(f"Error updating branch {git_branch}: {e}")
-'''
-
 
 def make_env(rank, env_conf, seed=0):
-    """
-    Utility function for multiprocessed env.
-    :param env_conf: (dict) environment configuration
-    :param seed: (int) the initial seed for RNG
-    :param rank: (int) index of the subprocess
-    """
     def _init():
         env = RedGymEnv(env_conf)
         env.reset(seed=(seed + rank))
         return env
-
     set_random_seed(seed)
     return _init
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Machine Learning Checkpoint Management for RedGym Environment')
-    parser.add_argument('--menu', action='store_true', help='Show the menu')
-    parser.add_argument('--restore', help='Restore from a URL or use the default URL')
-    parser.add_argument('--upload', help='Upload to a URL or use the default URL')
-    parser.add_argument('--url', help='Specify a custom BASE_URL')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--menu')
+    parser.add_argument('--restore')
+    parser.add_argument('--upload')
+    parser.add_argument('--url')
     return parser.parse_args()
 
 def show_menu(selected_checkpoint):
-    while True: 
+    while True:
         session_dict, downloaded_checkpoints = list_all_sessions_and_pokes()
         if not session_dict:
             print("No checkpoints found.")
@@ -74,16 +47,15 @@ def show_menu(selected_checkpoint):
         for i, (session, largest_step) in enumerate(session_dict.items()):
             print(f"  {i + 1}. {session}/poke-{largest_step}_steps.zip")
 
-        print("\n  Downloaded checkpoints:")
+        print("\nDownloaded checkpoints:")
         for i, checkpoint in enumerate(downloaded_checkpoints, start=downloaded_checkpoint_count + 1):
             print(f"  {i}. {checkpoint}")
-    
+
         print("\nDefault Runs:")
         matching_files = [file for file in os.listdir(os.getcwd()) if file.startswith("run_") and file.endswith(".py")]
         for i, file in enumerate(matching_files, start=downloaded_checkpoint_count + 1):
             print(f"  {i}. {file}")
 
-        #print("\n  95. Future-Delete Saved Files")
         print("\n  98. Resume from remote")
         print("  99. Upload to remote")
         menu_selection = input("Enter the number of the menu option: ")
@@ -94,14 +66,14 @@ def show_menu(selected_checkpoint):
                 selected_session = list(session_dict.keys())[selection - 1]
                 selected_step = session_dict[selected_session]
                 selected_checkpoint = f"{selected_session}/poke_{selected_step}_steps.zip"
-                return selected_checkpoint  
+                return selected_checkpoint
             elif downloaded_checkpoint_count + 1 <= selection <= downloaded_checkpoint_count + len(downloaded_checkpoints):
                 selected_checkpoint = os.path.join('downloaded_checkpoints', downloaded_checkpoints[selection - downloaded_checkpoint_count - 1])
                 return selected_checkpoint
             elif downloaded_checkpoint_count + len(downloaded_checkpoints) + 1 <= selection <= downloaded_checkpoint_count + len(downloaded_checkpoints) + len(matching_files):
                 selected_run = matching_files[selection - downloaded_checkpoint_count - len(downloaded_checkpoints) - 1]
                 run_script = f"python3 {selected_run}"
-                subprocess.run(run_script, shell=True)   
+                subprocess.run(run_script, shell=True)
             elif menu_selection == '98':
                 selected_checkpoint = remote_actions()
                 if selected_checkpoint:
@@ -133,18 +105,14 @@ def list_all_sessions_and_pokes():
 
 def remote_actions():
     BASE_URL = DEFAULT_BASE_URL
-
     response = requests.get(f"{BASE_URL}/uploads/metadata.txt")
-
     if response.status_code != 200:
         print("Failed to fetch metadata from the server.")
         return None
-
     server_metadata = response.text.strip()
     if not server_metadata:
         print("No checkpoint metadata found. Is this an empty server?")
         return None
-
     try:
         server_metadata = json.loads(server_metadata)
     except json.decoder.JSONDecodeError as e:
@@ -173,7 +141,6 @@ def remote_actions():
             print("Invalid selection.")
     except ValueError:
         print("Invalid input. Please enter a valid number.")
-
     return None
 
 def restore(url, download_selection):
@@ -194,7 +161,6 @@ def upload(selection, session_dict):
         selected_session = list(session_dict.keys())[selection - 1]
         selected_step = session_dict[selected_session]
         file_path = f"{selected_session}/poke_{selected_step}_steps.zip"
-
         upload_command = f"curl -X POST -F file=@{file_path} http://127.0.0.1:5000/upload"
         subprocess.run(upload_command, shell=True)
     except (ValueError, IndexError):
@@ -211,13 +177,12 @@ def main(selected_checkpoint):
         'use_screen_explore': True, 'reward_scale': 4, 'extra_buttons': False,
         'explore_weight': 3
     }
-
     print(env_config)
     num_cpu = 16
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path, name_prefix='poke')
     learn_steps = 40
-
+    
     print('\nLoading checkpoint', selected_checkpoint, ' ... \n')
     model = PPO.load(selected_checkpoint, env=env)
     model.n_steps = ep_length
@@ -231,6 +196,4 @@ def main(selected_checkpoint):
 if __name__ == '__main__':
     selected_checkpoint = None
     selected_checkpoint = show_menu(selected_checkpoint)
-    #main(selected_checkpoint)  
-
-
+    main(selected_checkpoint)
