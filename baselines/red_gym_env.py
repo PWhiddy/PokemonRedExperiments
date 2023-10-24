@@ -340,11 +340,15 @@ class RedGymEnv(Env):
         
         def make_reward_channel(r_val):
             col_steps = self.col_steps
-            row = floor(r_val / (h * col_steps))
+            # truncate so status bar does not overflow
+            # this used to throw an exception but now is silent!
+            # if you are filling the reward bar you should scale it down
+            # in group_rewards function instead of letting it truncate
+            row = min(floor(r_val / (h * col_steps)), h-1)
             memory = np.zeros(shape=(h, w), dtype=np.uint8)
             memory[:, :row] = 255
             row_covered = row * h * col_steps
-            col = floor((r_val - row_covered) / col_steps)
+            col = min(floor((r_val - row_covered) / col_steps), w-1)
             memory[:col, row] = 255
             col_covered = col * col_steps
             last_pixel = floor(r_val - row_covered - col_covered) 
