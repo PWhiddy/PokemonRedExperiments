@@ -340,6 +340,10 @@ class RedGymEnv(Env):
         
         def make_reward_channel(r_val):
             col_steps = self.col_steps
+            max_r_val = (w-1) * h * col_steps
+            # truncate progress bar. if hitting this
+            # you should scale down the reward in group_rewards!
+            r_val = min(r_val, max_r_val)
             row = floor(r_val / (h * col_steps))
             memory = np.zeros(shape=(h, w), dtype=np.uint8)
             memory[:, :row] = 255
