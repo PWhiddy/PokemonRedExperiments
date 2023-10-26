@@ -150,6 +150,7 @@ class RedGymEnv(Env):
         self.last_health = 1
         self.total_healing_rew = 0
         self.died_count = 0
+        self.party_size = 0
         self.step_count = 0
         self.progress_reward = self.get_game_state_reward()
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
@@ -206,6 +207,7 @@ class RedGymEnv(Env):
             self.update_seen_coords()
             
         self.update_heal_reward()
+        self.party_size = self.read_m(0xD163)
 
         new_reward, new_prog = self.update_reward()
         
@@ -458,7 +460,9 @@ class RedGymEnv(Env):
     
     def update_heal_reward(self):
         cur_health = self.read_hp_fraction()
-        if cur_health > self.last_health:
+        # if health increased and party size did not change
+        if (cur_health > self.last_health and
+                self.read_m(0xD163) == self.party_size):
             if self.last_health > 0:
                 heal_amount = cur_health - self.last_health
                 if heal_amount > 0.5:
