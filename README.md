@@ -45,8 +45,11 @@ This version still needs some tuning, but it can clear the first gym in a small 
 ```python run_baseline_parallel_fast.py```
 
 ## Tracking Training Progress 📈 
-
-You can view the current state of each emulator, plot basic stats, and compare to previous runs using the `VisualizeProgress.ipynb` notebook.
+The current state of each game is rendered to images in the session directory.   
+You can track the progress in tensorboard by moving into the session directory and running:  
+```tensorboard --logdir .```  
+You can then navigate to `localhost:6006` in your browser to view metrics.  
+To enable wandb integration, change `use_wandb_logging` in the training script to `True`.
 
 ## Extra 🐜
 Map visualization code can be found in `visualization/` directory.
