@@ -33,8 +33,7 @@ class TensorboardCallback(BaseCallback):
             for key,val in mean_infos.items():
                 self.logger.record(f"env_stats/{key}", val)
             
-            #method_name: str, *method_args, indices: VecEnvIndices = None, **method_kwargs)
-            images = self.training_env.env_method("render") # , mode="rgb_array", reduce_res=False, update_mem=False
+            images = self.training_env.env_method("render") # use reduce_res=False for full res screens
             images_arr = np.array(images)
             images_row = rearrange(images_arr, "b h w c -> h (b w) c")
             self.logger.record("trajectory/image", Image(images_row, "HWC"), exclude=("stdout", "log", "json", "csv"))

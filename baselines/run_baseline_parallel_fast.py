@@ -57,9 +57,9 @@ if __name__ == '__main__':
             project="pokemon-train",
             id=sess_id,
             config=env_config,
-            sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+            sync_tensorboard=True,  
             monitor_gym=True,  
-            save_code=True,  # optional
+            save_code=True,
         )
         callbacks.append(WandbCallback())
 
