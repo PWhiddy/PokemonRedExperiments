@@ -12,6 +12,7 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
+import webbrowser
 
 DEFAULT_BASE_URL = "http://127.0.0.1:5000"
 directory_path = 'downloaded_checkpoints'
@@ -56,8 +57,9 @@ def show_menu(selected_checkpoint):
         for i, file in enumerate(matching_files, start=downloaded_checkpoint_count + 1):
             print(f"  {i}. {file}")
 
-        print("\n  98. Resume from remote")
-        print("  99. Upload to remote")
+        print("\n  97. Resume from remote")
+        print("  98. Upload to remote")
+        print("  99. View progress using index.html")
         menu_selection = input("Enter the number of the menu option: ")
 
         if menu_selection.isdigit():
@@ -74,13 +76,18 @@ def show_menu(selected_checkpoint):
                 selected_run = matching_files[selection - downloaded_checkpoint_count - len(downloaded_checkpoints) - 1]
                 run_script = f"python3 {selected_run}"
                 subprocess.run(run_script, shell=True)
-            elif menu_selection == '98':
+            elif menu_selection == '97':
                 selected_checkpoint = remote_actions()
                 if selected_checkpoint:
                     return selected_checkpoint
-            elif menu_selection == '99':
+            elif menu_selection == '98':
                 selection = int(input("Enter your selection for remote upload: "))
                 upload(selection, session_dict)
+            elif menu_selection == '99':
+                create_index('index.html')
+                print('Open index.html to monitor the newest run.')
+
+
             else:
                 print("Invalid selection.")
         else:
@@ -192,6 +199,59 @@ def main(selected_checkpoint):
     model.rollout_buffer.reset()
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length) * num_cpu * 1000, callback=checkpoint_callback)
+
+
+def create_index(output_file='index.html'):
+    # Find all session folders within the current working directory
+    session_folders = [folder for folder in os.listdir() if folder.startswith('session_')]
+    if not session_folders:
+        print("No 'session_' folders found in the current working directory.")
+        return
+
+    # Sort the session folders by their names (timestamps) and get the newest one
+    newest_session = max(session_folders, key=lambda folder: os.path.getctime(folder))
+
+    image_names = []
+
+    # Get a list of image names in the newest session folder
+    image_dir = os.path.join(newest_session)
+    for filename in os.listdir(image_dir):
+        if filename.endswith('.jpeg'):
+            image_names.append(filename)
+
+    # Create the updated HTML content with the image names
+    html_content = f"""<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dynamic Photo Grid</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <meta http-equiv="refresh" content="2"> <!-- Refresh the grid frame every 5 seconds -->
+    </head>
+    <body class="p-4">
+        <div class="grid grid-cols-4 gap-4">
+    """
+    
+    # Update the image sources based on the image names
+    for i, image_name in enumerate(image_names, start=1):
+        image_src = os.path.join(newest_session, image_name)
+        html_content += f'        <img src="{image_src}" class="w-full h-auto max-w-lg" alt="Image {i}">\n'
+    
+    html_content += """    </div>
+    <style>
+        .max-w-lg {
+            max-width: 250px; /* Adjust this value to make the images slightly bigger */
+        }
+    </style>
+    </body>
+    </html>
+    """
+    # Save the updated HTML content to a file
+    with open(output_file, 'w') as file:
+        file.write(html_content)
+
+    print(f"HTML content updated and saved as '{output_file}'.")
 
 if __name__ == '__main__':
     selected_checkpoint = None
