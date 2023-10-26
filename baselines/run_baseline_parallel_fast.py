@@ -2,11 +2,12 @@ from os.path import exists
 from pathlib import Path
 import uuid
 from red_gym_env import RedGymEnv
-from stable_baselines3 import A2C, PPO
+from stable_baselines3 import PPO
 from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
+from tensorboard_callback import TensorboardCallback
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -25,9 +26,10 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-
+    use_wandb_logging = False
     ep_length = 2048 * 10
-    sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
+    sess_id = str(uuid.uuid4())[:8]
+    sess_path = Path(f'session_{sess_id}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
@@ -45,6 +47,22 @@ if __name__ == '__main__':
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='poke')
+    
+    callbacks = [checkpoint_callback, TensorboardCallback()]
+
+    if use_wandb_logging:
+        import wandb
+        from wandb.integration.sb3 import WandbCallback
+        run = wandb.init(
+            project="pokemon-train",
+            id=sess_id,
+            config=env_config,
+            sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+            monitor_gym=True,  
+            save_code=True,  # optional
+        )
+        callbacks.append(WandbCallback())
+
     #env_checker.check_env(env)
     learn_steps = 40
     # put a checkpoint here you want to start from
@@ -59,7 +77,10 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998, tensorboard_log=sess_path)
     
     for i in range(learn_steps):
-        model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=checkpoint_callback)
+        model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=CallbackList(callbacks))
+
+    if use_wandb_logging:
+        run.finish()

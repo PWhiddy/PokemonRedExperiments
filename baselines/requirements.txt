@@ -81,6 +81,7 @@ soupsieve==2.4.1
 stable-baselines3==2.0.0
 stack-data==0.6.2
 sympy==1.12
+tensorboard==2.15.0
 threadpoolctl==3.1.0
 tifffile==2023.4.12
 tinycss2==1.2.1
@@ -90,5 +91,6 @@ tqdm==4.65.0
 traitlets==5.9.0
 typing_extensions==4.6.3
 tzdata==2023.3
+wandb==0.15.12
 wcwidth==0.2.6
 webencodings==0.5.1
