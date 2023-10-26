@@ -267,8 +267,12 @@ class RedGymEnv(Env):
             expl = ('coord_count', len(self.seen_coords))
         self.agent_stats.append({
             'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n,
+            'map_location': self.get_map_location(map_n),
             'last_action': action,
-            'pcount': self.read_m(0xD163), 'levels': levels, 'ptypes': self.read_party(),
+            'pcount': self.read_m(0xD163), 
+            'levels': levels, 
+            'levels_sum': sum(levels),
+            'ptypes': self.read_party(),
             'hp': self.read_hp_fraction(),
             expl[0]: expl[1],
             'deaths': self.died_count, 'badge': self.get_badges(),
@@ -573,3 +577,45 @@ class RedGymEnv(Env):
         return (100 * 100 * self.read_bcd(self.read_m(0xD347)) + 
                 100 * self.read_bcd(self.read_m(0xD348)) +
                 self.read_bcd(self.read_m(0xD349)))
+
+    def get_map_location(self, map_idx):
+        map_locations = {
+            0: "Pallet Town",
+            1: "Viridian City",
+            2: "Pewter City",
+            3: "Cerulean City",
+            12: "Route 1",
+            13: "Route 2",
+            14: "Route 3",
+            15: "Route 4",
+            33: "Route 22",
+            37: "Red house first",
+            38: "Red house second",
+            39: "Blues house",
+            40: "oaks lab",
+            41: "Pokémon Center (Viridian City)",
+            42: "Poké Mart (Viridian City)",
+            43: "School (Viridian City)",
+            44: "House 1 (Viridian City)",
+            47: "Gate (Viridian City/Pewter City) (Route 2)",
+            49: "Gate (Route 2)",
+            50: "Gate (Route 2/Viridian Forest) (Route 2)",
+            51: "viridian forest",
+            52: "Pewter Museum (floor 1)",
+            53: "Pewter Museum (floor 2)",
+            54: "Pokémon Gym (Pewter City)",
+            55: "House with disobedient Nidoran♂ (Pewter City)",
+            56: "Poké Mart (Pewter City)",
+            57: "House with two Trainers (Pewter City)",
+            58: "Pokémon Center (Pewter City)",
+            59: "Mt. Moon (Route 3 entrance)",
+            60: "Mt. Moon",
+            61: "Mt. Moon",
+            68: "Pokémon Center (Route 4)",
+            193: "Badges check gate (Route 22)"
+        }
+        if map_idx in map_locations.keys():
+            return map_locations[map_idx]
+        else:
+            return "Unknown Location"
+    
