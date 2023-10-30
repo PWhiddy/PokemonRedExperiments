@@ -11,11 +11,11 @@ RUN apt-get update && apt-get install -y \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY baselines/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy source-code
+COPY . .
 
-# Copy the rest of the application code
+# Install Python dependencies
+RUN pip install --no-cache-dir -r baselines/requirements.txt
 
 # Command to run at container start
-CMD [ "python", "./baselines/run_baseline_parallel.py" ]
+CMD [ "python", "baselines/run_baseline_parallel.py" ]
