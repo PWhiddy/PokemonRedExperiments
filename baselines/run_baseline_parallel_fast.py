@@ -1,7 +1,7 @@
 from os.path import exists
 from pathlib import Path
 import uuid
-from red_gym_env import RedGymEnv
+from red_gym_env_v2 import RedGymEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -26,7 +26,7 @@ def make_env(rank, env_conf, seed=0):
 
 if __name__ == '__main__':
 
-    use_wandb_logging = False
+    use_wandb_logging = True
     ep_length = 2048 * 10
     sess_id = str(uuid.uuid4())[:8]
     sess_path = Path(f'session_{sess_id}')
@@ -77,7 +77,7 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998, tensorboard_log=sess_path)
+        model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 16, batch_size=128, n_epochs=1, gamma=0.997, tensorboard_log=sess_path)
     
     for i in range(learn_steps):
         model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=CallbackList(callbacks))
