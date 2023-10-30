@@ -15,6 +15,7 @@ from tqdm import tqdm
 import mediapy as media
 import numpy as np
 
+import matplotlib as mpl
 
 def make_all_coords_arrays(filtered_dfs):
     return np.array([tdf[['x', 'y', 'map']].to_numpy().astype(np.uint8) for tdf in filtered_dfs]).transpose(1,0,2)
@@ -67,7 +68,8 @@ def game_coord_to_pixel_coord(
         60: np.array([123, 227]), # Mt. Moon
         61: np.array([152, 227]), # Mt. Moon
         68: np.array([65, 190]), # Pokémon Center (Route 4)
-        193: None # Badges check gate (Route 22)
+        #193: None # Badges check gate (Route 22)
+        193: np.array([-47, 72]) # Badges check gate (Route 22)
     }
     if map_idx in map_offsets.keys():
         offset = map_offsets[map_idx]
@@ -105,9 +107,10 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
     debug = False
     errors = []
     sprites_rendered = 0
-    turbo_map = get_cmap("cet_isoluminant_cgo_80_c38")._resample(8) #mpl.colormaps['turbo']._resample(8)
+    #turbo_map = get_cmap("cet_isoluminant_cgo_80_c38")._resample(8) #mpl.colormaps['turbo']._resample(8)
+    turbo_map = mpl.colormaps['turbo'].resampled(8)
     with media.VideoWriter(
-        f'{fname}.mov', split(bg).shape[:2], codec='prores_ks', 
+        f'{fname}.mp4', split(bg).shape[:2], codec='h264', 
         encoded_format='yuva444p', input_format='rgba', fps=60
     ) as wr:
         step_count = len(all_coords)
@@ -160,7 +163,8 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
                     interp_coord = prev_p_coord + (fract*(diff.astype(np.float32))).astype(np.int32)
                     if np.linalg.norm(diff) > 16:
                         continue
-                    agent_version_float = (run // 44) / 610
+                    #agent_version_float = (run // 44) / 610
+                    agent_version_float = run / (1024 / 8)
                     error = add_sprite(
                         over, np.array(turbo_map(agent_version_float)) * walks[state[run]['dir']],
                         interp_coord
@@ -169,7 +173,10 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
                         errors.append(error)
                     else:
                         sprites_rendered += 1
-                wr.add_image(split(over[:,:,:]))
+                composite_img = np.where(over !=0, over, bg)
+                wr.add_image(composite_img[:,:,:])
+
+                
                 perc = len(errors) / (sprites_rendered + len(errors))
                 pbar.set_description(f"draws: {sprites_rendered} errors: {len(errors)}, {perc:.2%}")
     return errors
@@ -184,11 +191,10 @@ def test_render(name, dat, walks, bg):
     )
 
 if __name__ == '__main__':
+    session = 'session_0b2ee8ab' #Place Session Here
+    run_dir = Path('baselines/' + session + '/')
     
-    run_dir = Path('baselines/session_4da05e87_main_full') # Path('baselines/session_ebdfe818')
-# original session_e41c9eff, main session_4da05e87, extra session_e1b6d2dc
-    
-    coords_save_pth = Path('base_coords.npz')
+    coords_save_pth = Path('visualization/coords/' + session + '_base_coords.npz')
     
     if coords_save_pth.is_file():
         print(f'{coords_save_pth} found, loading from file')
@@ -196,6 +202,8 @@ if __name__ == '__main__':
     else:
         print(f'{coords_save_pth} not found, building...')
         dfs = []
+        print(run_dir)
+        print(dir(run_dir.glob('*.gz')))
         for run in tqdm(run_dir.glob('*.gz')):
             tdf = pd.read_csv(run, compression='gzip')
             dfs.append(tdf[tdf['map'] != 'map'])
@@ -206,25 +214,20 @@ if __name__ == '__main__':
     
     print(f'initial data shape: {base_coords.shape}')
 
-    main_map = np.array(Image.open('poke_map/pokemap_full_calibrated_CROPPED_1.png'))
-    chars_img = np.array(Image.open('poke_map/characters.png'))
+    main_map = np.array(Image.open('visualization/poke_map/pokemap_full_calibrated_CROPPED_1.png'))
+    chars_img = np.array(Image.open('visualization/poke_map/characters.png'))
     alpha_val = get_sprite_by_coords(chars_img, 1, 0)[0,0]
     walks = [get_sprite_by_coords(chars_img, x, 0) for x in [1, 4, 6, 8]]
         
     start_bg = main_map.copy()
 
-    procs = 8#16
-    with Pool(procs) as p:
-        run_steps = 16385
-        base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
-        base_data = base_data[:1024]
-        print(f'base_data shape: {base_data.shape}')
-        runs = base_data.shape[0] #base_data.shape[1]
-        chunk_size = runs // procs
-        #render_errors = test_render(
-        #    f'map_vis_final_state', base_data[(base_data.shape[0]-5):], walks, start_bg)
-        #f'map_vis_initial_state', base_data[:], walks, start_bg
-        all_render_errors = p.starmap(
-            test_render, 
-            [(f'map_vis_color/map_vis_initial_state{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], walks, start_bg) for i in range(procs)])
+    run_steps = 20480 + 1
+    base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
+    #base_data = base_data[:1024]
+    print(f'base_data shape: {base_data.shape}')
     
+    #Break down videos into smaller chunks
+    num_videos = 10
+    chunk_size = 20480 / num_videos
+    for i in range(num_videos):
+        test_render('visualization/videos/' + session + str(i), base_data[chunk_size*i:chunk_size*(i+1)], walks, start_bg)
