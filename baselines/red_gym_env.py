@@ -558,6 +558,7 @@ class RedGymEnv(Env):
     def read_hp_fraction(self):
         hp_sum = sum([self.read_hp(add) for add in [0xD16C, 0xD198, 0xD1C4, 0xD1F0, 0xD21C, 0xD248]])
         max_hp_sum = sum([self.read_hp(add) for add in [0xD18D, 0xD1B9, 0xD1E5, 0xD211, 0xD23D, 0xD269]])
+        max_hp_sum = max(max_hp_sum, 1)
         return hp_sum / max_hp_sum
 
     def read_hp(self, start):
