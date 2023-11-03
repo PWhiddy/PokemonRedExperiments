@@ -1,4 +1,7 @@
 # Train RL agents to play Pokemon Red
+  <p float="center">
+   <img src="/assets/pokerl.png?raw=true" height="550">
+  </p>
   
 ## Watch the Video on Youtube! 
 
