@@ -24,10 +24,10 @@ def make_env(rank, env_conf, seed=0):
     set_random_seed(seed)
     return _init
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     use_wandb_logging = True
-    ep_length = 2048 * 8
+    ep_length = 2048 * 10
     sess_id = str(uuid.uuid4())[:8]
     sess_path = Path(f'session_{sess_id}')
 
@@ -35,9 +35,9 @@ if __name__ == '__main__':
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
-                'use_screen_explore': True, 'reward_scale': 4, 'extra_buttons': False,
-                'explore_weight': 3 # 2.5
+                'gb_path': '../PokemonRed.gb', 'debug': False, 
+                'use_screen_explore': True, 'reward_scale': 0.5, 'extra_buttons': False,
+                'explore_weight': 1.5 # 2.5
             }
     
     print(env_config)
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
-                                     name_prefix='poke')
+                                     name_prefix="poke")
     
     callbacks = [checkpoint_callback, TensorboardCallback(sess_path)]
 
@@ -65,12 +65,11 @@ if __name__ == '__main__':
         callbacks.append(WandbCallback())
 
     #env_checker.check_env(env)
-    learn_steps = 40
     # put a checkpoint here you want to start from
-    file_name = 'session_e41c9eff/poke_38207488_steps' 
+    file_name = "session_<your_session_here>/poke_<your_checkpoint_here>_steps"
     
-    if exists(file_name + '.zip'):
-        print('\nloading checkpoint')
+    if exists(file_name + ".zip"):
+        print("\nloading checkpoint")
         model = PPO.load(file_name, env=env)
         model.n_steps = ep_length
         model.n_envs = num_cpu
@@ -78,12 +77,11 @@ if __name__ == '__main__':
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO('MultiInputPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.997, tensorboard_log=sess_path)
+        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=ep_length // 10, batch_size=128, n_epochs=3, gamma=0.997, tensorboard_log=sess_path)
     
     print(model.policy)
 
-    for i in range(learn_steps):
-        model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=CallbackList(callbacks))
+    model.learn(total_timesteps=(ep_length)*num_cpu*10000, callback=CallbackList(callbacks), tb_log_name="poke_ppo")
 
     if use_wandb_logging:
         run.finish()
