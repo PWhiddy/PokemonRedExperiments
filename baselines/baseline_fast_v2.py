@@ -4,7 +4,7 @@ import uuid
 from red_gym_env_v2 import RedGymEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common import env_checker
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from tensorboard_callback import TensorboardCallback
@@ -35,9 +35,7 @@ if __name__ == "__main__":
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 
-                'use_screen_explore': True, 'reward_scale': 0.5,
-                'explore_weight': 1 # 2.5
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 1.25
             }
     
     print(env_config)
@@ -65,6 +63,7 @@ if __name__ == "__main__":
         callbacks.append(WandbCallback())
 
     #env_checker.check_env(env)
+
     # put a checkpoint here you want to start from
     file_name = "session_<your_session_here>/poke_<your_checkpoint_here>_steps"
     

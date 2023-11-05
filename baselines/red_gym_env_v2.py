@@ -32,9 +32,6 @@ class RedGymEnv(Env):
         self.explore_weight = (
             1 if "explore_weight" not in config else config["explore_weight"]
         )
-        self.use_screen_explore = (
-            True if "use_screen_explore" not in config else config["use_screen_explore"]
-        )
         self.reward_scale = (
             1 if "reward_scale" not in config else config["reward_scale"]
         )
@@ -476,7 +473,7 @@ class RedGymEnv(Env):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         state_scores = {
-            "event": self.reward_scale * self.update_max_event_rew(),
+            "event": self.reward_scale * self.update_max_event_rew() * 2,
             "level": self.reward_scale * self.get_levels_reward(),
             "heal": self.reward_scale * self.total_healing_rew * 4,
             "op_lvl": self.reward_scale * self.update_max_op_level() * 0.2,
