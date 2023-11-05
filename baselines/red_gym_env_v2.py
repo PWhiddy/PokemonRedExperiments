@@ -80,7 +80,7 @@ class RedGymEnv(Env):
             WindowEvent.RELEASE_BUTTON_START
         ]
 
-        self.output_shape = (72, 80, 1)
+        self.output_shape = (72, 80, self.frame_stacks)
         self.coords_pad = 32
 
         # Set these in ALL subclasses
@@ -90,12 +90,13 @@ class RedGymEnv(Env):
 
         self.observation_space = spaces.Dict(
             {
-                "screen": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
+                "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
                 "health": spaces.Box(low=0, high=1),
                 "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
                 "map": spaces.Box(low=0, high=255, shape=(
-                    self.coords_pad*2,self.coords_pad*2, 1), dtype=np.uint8)
+                    self.coords_pad*2,self.coords_pad*2, 1), dtype=np.uint8),
+                "recent_actions": spaces.MultiDiscrete([len(self.valid_actions)] * self.frame_stacks)
             }
         )
 
@@ -125,6 +126,10 @@ class RedGymEnv(Env):
         self.agent_stats = []
 
         self.explore_map = np.zeros((384,384), dtype=np.uint8)
+
+        self.recent_screens = np.zeros( self.output_shape, dtype=np.uint8)
+        
+        self.recent_actions = np.zeros((self.frame_stacks,), dtype=np.uint8)
 
         self.levels_satisfied = False
         self.base_explore = 0
@@ -156,6 +161,8 @@ class RedGymEnv(Env):
     def _get_obs(self):
         
         screen = self.render()
+
+        self.update_recent_screens(screen)
         
         # normalize to approx 0-1
         level_sum = 0.02 * sum([
@@ -163,11 +170,12 @@ class RedGymEnv(Env):
         ])
 
         observation = {
-            "screen": screen,
+            "screens": self.recent_screens,
             "health": np.array([self.read_hp_fraction()]),
             "level": self.fourier_encode(level_sum),
             "events": np.array(self.read_event_bits(), dtype=np.int8),
-            "map": self.get_explore_map()[:, :, None]
+            "map": self.get_explore_map()[:, :, None],
+            "recent_actions": self.recent_actions
         }
 
         return observation
@@ -179,6 +187,8 @@ class RedGymEnv(Env):
 
         self.run_action_on_emulator(action)
         self.append_agent_stats(action)
+
+        self.update_recent_actions(action)
 
         self.update_seen_coords()
 
@@ -322,6 +332,14 @@ class RedGymEnv(Env):
             c[0]-self.coords_pad:c[0]+self.coords_pad,
             c[1]-self.coords_pad:c[1]+self.coords_pad
         ]
+    
+    def update_recent_screens(self, cur_screen):
+        self.recent_screens = np.roll(self.recent_screens, 1, axis=2)
+        self.recent_screens[:, :, 0] = cur_screen[:,:, 0]
+
+    def update_recent_actions(self, action):
+        self.recent_actions = np.roll(self.recent_actions, 1)
+        self.recent_actions[0] = action
 
     def update_reward(self):
         # compute reward

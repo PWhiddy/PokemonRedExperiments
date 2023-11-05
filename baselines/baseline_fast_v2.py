@@ -36,8 +36,8 @@ if __name__ == "__main__":
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 
-                'use_screen_explore': True, 'reward_scale': 0.5, 'extra_buttons': False,
-                'explore_weight': 1.5 # 2.5
+                'use_screen_explore': True, 'reward_scale': 0.5,
+                'explore_weight': 1 # 2.5
             }
     
     print(env_config)
