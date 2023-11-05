@@ -1,10 +1,9 @@
 import uuid
-from math import floor
 import json
 from pathlib import Path
 
 import numpy as np
-from skimage.transform import resize, downscale_local_mean
+from skimage.transform import downscale_local_mean
 import matplotlib.pyplot as plt
 from pyboy import PyBoy
 from pyboy.logger import log_level
@@ -36,7 +35,6 @@ class RedGymEnv(Env):
         self.use_screen_explore = (
             True if "use_screen_explore" not in config else config["use_screen_explore"]
         )
-        self.similar_frame_dist = config["sim_frame_dist"]
         self.reward_scale = (
             1 if "reward_scale" not in config else config["reward_scale"]
         )
@@ -48,6 +46,7 @@ class RedGymEnv(Env):
         self.s_path.mkdir(exist_ok=True)
         self.full_frame_writer = None
         self.model_frame_writer = None
+        self.map_frame_writer = None
         self.reset_count = 0
         self.all_runs = []
 
@@ -82,6 +81,7 @@ class RedGymEnv(Env):
         ]
 
         self.output_shape = (72, 80, 1)
+        self.coords_pad = 32
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
@@ -91,10 +91,11 @@ class RedGymEnv(Env):
         self.observation_space = spaces.Dict(
             {
                 "screen": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
-                #"health": spaces.Box(low=0, high=1, shape=(1,)),
-                #"level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
-                #"events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
-                # "map": spaces.Box(low=0, high=255, shape=(64,64), dtype=np.uint8)
+                "health": spaces.Box(low=0, high=1),
+                "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
+                "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
+                "map": spaces.Box(low=0, high=255, shape=(
+                    self.coords_pad*2,self.coords_pad*2, 1), dtype=np.uint8)
             }
         )
 
@@ -122,6 +123,8 @@ class RedGymEnv(Env):
         self.init_map_mem()
 
         self.agent_stats = []
+
+        self.explore_map = np.zeros((384,384), dtype=np.uint8)
 
         self.levels_satisfied = False
         self.base_explore = 0
@@ -154,15 +157,17 @@ class RedGymEnv(Env):
         
         screen = self.render()
         
-        level_sum = sum([
+        # normalize to approx 0-1
+        level_sum = 0.02 * sum([
             self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
         ])
 
         observation = {
             "screen": screen,
-        #    "health": self.read_hp_fraction(),
-        #    "level": self.fourier_encode(level_sum),
-        #    "events": self.read_event_bits()
+            "health": np.array([self.read_hp_fraction()]),
+            "level": self.fourier_encode(level_sum),
+            "events": np.array(self.read_event_bits(), dtype=np.int8),
+            "map": self.get_explore_map()[:, :, None]
         }
 
         return observation
@@ -177,11 +182,13 @@ class RedGymEnv(Env):
 
         self.update_seen_coords()
 
+        self.update_explore_map()
+
         self.update_heal_reward()
 
         self.party_size = self.read_m(0xD163)
 
-        new_reward, new_prog = self.update_reward()
+        new_reward = self.update_reward()
 
         self.last_health = self.read_hp_fraction()
 
@@ -191,11 +198,11 @@ class RedGymEnv(Env):
 
         obs = self._get_obs()
 
-        self.save_and_print_info(step_limit_reached, obs["screen"])
+        self.save_and_print_info(step_limit_reached, obs)
 
         self.step_count += 1
 
-        return obs, new_reward * 0.1, False, step_limit_reached, {}
+        return obs, new_reward, False, step_limit_reached, {}
     
     def run_action_on_emulator(self, action):
         # press button then release after some steps
@@ -218,9 +225,7 @@ class RedGymEnv(Env):
             self.add_video_frame()
 
     def append_agent_stats(self, action):
-        x_pos = self.read_m(0xD362)
-        y_pos = self.read_m(0xD361)
-        map_n = self.read_m(0xD35E)
+        x_pos, y_pos, map_n = self.get_game_coords()
         levels = [
             self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]
         ]
@@ -252,6 +257,8 @@ class RedGymEnv(Env):
             self.full_frame_writer.close()
         if self.model_frame_writer is not None:
             self.model_frame_writer.close()
+        if self.map_frame_writer is not None:
+            self.map_frame_writer.close()
 
         base_dir = self.s_path / Path("rollouts")
         base_dir.mkdir(exist_ok=True)
@@ -269,6 +276,15 @@ class RedGymEnv(Env):
             base_dir / model_name, self.output_shape[:2], fps=60, input_format="gray"
         )
         self.model_frame_writer.__enter__()
+        map_name = Path(
+            f"map_reset_{self.reset_count}_id{self.instance_id}"
+        ).with_suffix(".mp4")
+        self.map_frame_writer = media.VideoWriter(
+            base_dir / map_name,
+            (self.coords_pad*2, self.coords_pad*2), 
+            fps=60, input_format="gray"
+        )
+        self.map_frame_writer.__enter__()
 
     def add_video_frame(self):
         self.full_frame_writer.add_image(
@@ -277,33 +293,46 @@ class RedGymEnv(Env):
         self.model_frame_writer.add_image(
             self.render(reduce_res=True)[:,:,0]
         )
+        self.map_frame_writer.add_image(
+            self.get_explore_map()
+        )
+
+    def get_game_coords(self):
+        return (self.read_m(0xD362), self.read_m(0xD361), self.read_m(0xD35E))
 
     def update_seen_coords(self):
-        x_pos = self.read_m(0xD362)
-        y_pos = self.read_m(0xD361)
-        map_n = self.read_m(0xD35E)
+        x_pos, y_pos, map_n = self.get_game_coords()
         coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
         self.seen_coords[coord_string] = self.step_count
 
+    def get_global_coords(self):
+        x_pos, y_pos, map_n = self.get_game_coords()
+        c = (np.array([x_pos,y_pos])
+        + self.get_map_location(map_n)["coordinates"]
+        + self.coords_pad)
+        return self.explore_map.shape[0]-c[1], c[0]
+
+    def update_explore_map(self):
+        c = self.get_global_coords()
+        self.explore_map[c[0], c[1]] = 255
+
+    def get_explore_map(self):
+        c = self.get_global_coords()
+        return self.explore_map[
+            c[0]-self.coords_pad:c[0]+self.coords_pad,
+            c[1]-self.coords_pad:c[1]+self.coords_pad
+        ]
+
     def update_reward(self):
         # compute reward
-        old_prog = self.group_rewards()
         self.progress_reward = self.get_game_state_reward()
-        new_prog = self.group_rewards()
         new_total = sum(
             [val for _, val in self.progress_reward.items()]
         )
         new_step = new_total - self.total_reward
 
         self.total_reward = new_total
-        return (
-            new_step,
-            (
-                new_prog[0] - old_prog[0],
-                new_prog[1] - old_prog[1],
-                new_prog[2] - old_prog[2],
-            ),
-        )
+        return new_step
 
     def group_rewards(self):
         prog = self.progress_reward
@@ -314,48 +343,12 @@ class RedGymEnv(Env):
             prog["explore"] * 150 / (self.explore_weight * self.reward_scale),
         )
 
-    def create_exploration_memory(self):
-        w = self.output_shape[1]
-        h = self.memory_height
-
-        def make_reward_channel(r_val):
-            col_steps = self.col_steps
-            max_r_val = (w - 1) * h * col_steps
-            # truncate progress bar. if hitting this
-            # you should scale down the reward in group_rewards!
-            r_val = min(r_val, max_r_val)
-            row = floor(r_val / (h * col_steps))
-            memory = np.zeros(shape=(h, w), dtype=np.uint8)
-            memory[:, :row] = 255
-            row_covered = row * h * col_steps
-            col = floor((r_val - row_covered) / col_steps)
-            memory[:col, row] = 255
-            col_covered = col * col_steps
-            last_pixel = floor(r_val - row_covered - col_covered)
-            memory[col, row] = last_pixel * (255 // col_steps)
-            return memory
-
-        level, hp, explore = self.group_rewards()
-        full_memory = np.stack(
-            (
-                make_reward_channel(level),
-                make_reward_channel(hp),
-                make_reward_channel(explore),
-            ),
-            axis=-1,
-        )
-
-        if self.get_badges() > 0:
-            full_memory[:, -1, :] = 255
-
-        return full_memory
-
     def check_if_done(self):
         done = self.step_count >= self.max_steps
         # done = self.read_hp_fraction() == 0
         return done
 
-    def save_and_print_info(self, done, obs_memory):
+    def save_and_print_info(self, done, obs):
         if self.print_rewards:
             prog_string = f"step: {self.step_count:6d}"
             for key, val in self.progress_reward.items():
@@ -377,9 +370,9 @@ class RedGymEnv(Env):
                 plt.imsave(
                     fs_path
                     / Path(
-                        f"frame_r{self.total_reward:.4f}_{self.reset_count}_small.jpeg"
+                        f"frame_r{self.total_reward:.4f}_{self.reset_count}_explore_map.jpeg"
                     ),
-                    obs_memory[:,:,0],
+                    obs["map"][:,:, 0],
                 )
                 plt.imsave(
                     fs_path
@@ -392,6 +385,7 @@ class RedGymEnv(Env):
         if self.save_video and done:
             self.full_frame_writer.close()
             self.model_frame_writer.close()
+            self.map_frame_writer.close()
 
         if done:
             self.all_runs.append(self.progress_reward)
