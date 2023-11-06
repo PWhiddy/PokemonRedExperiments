@@ -139,6 +139,11 @@ class RedGymEnv(Env):
         self.party_size = 0
         self.step_count = 0
 
+        self.base_event_flags = sum([
+                self.bit_count(self.read_m(i))
+                for i in range(event_flags_start, event_flags_end)
+        ])
+
         # experiment! 
         self.max_steps += 128
 
@@ -325,7 +330,10 @@ class RedGymEnv(Env):
 
     def update_explore_map(self):
         c = self.get_global_coords()
-        self.explore_map[c[0], c[1]] = 255
+        if c[0] >= self.explore_map.shape[0] or c[1] >= self.explore_map.shape[1]:
+            print(f"coord out of bounds! {c}")
+        else:
+            self.explore_map[c[0], c[1]] = 255
 
     def get_explore_map(self):
         c = self.get_global_coords()
@@ -469,13 +477,12 @@ class RedGymEnv(Env):
 
     def get_all_events_reward(self):
         # adds up all event flags, exclude museum ticket
-        base_event_flags = 13 # assumes particular game init point! 
         return max(
             sum([
                 self.bit_count(self.read_m(i))
                 for i in range(event_flags_start, event_flags_end)
             ])
-            - base_event_flags
+            - self.base_event_flags
             - int(self.read_bit(museum_ticket[0], museum_ticket[1])),
             0,
         )

@@ -27,13 +27,13 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == "__main__":
 
     use_wandb_logging = True
-    ep_length = 2048 * 8
+    ep_length = 2048 * 10
     sess_id = str(uuid.uuid4())[:8]
     sess_path = Path(f'session_{sess_id}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': 512, 
+                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': 1024, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 2
             }
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         run = wandb.init(
             project="pokemon-train",
             id=sess_id,
-            name="increasing-game-length-stack3-all-obs",
+            name="5-event-patched-increasing-game-length-stack3-all-obs",
             config=env_config,
             sync_tensorboard=True,  
             monitor_gym=True,  
