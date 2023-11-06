@@ -27,15 +27,15 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == "__main__":
 
     use_wandb_logging = True
-    ep_length = 2048 * 10
+    ep_length = 2048 * 8
     sess_id = str(uuid.uuid4())[:8]
     sess_path = Path(f'session_{sess_id}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': 512, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 1.25
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 2
             }
     
     print(env_config)
@@ -55,6 +55,7 @@ if __name__ == "__main__":
         run = wandb.init(
             project="pokemon-train",
             id=sess_id,
+            name="increasing-game-length-stack3-all-obs",
             config=env_config,
             sync_tensorboard=True,  
             monitor_gym=True,  
@@ -76,7 +77,7 @@ if __name__ == "__main__":
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=ep_length // 10, batch_size=128, n_epochs=3, gamma=0.997, tensorboard_log=sess_path)
+        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=2048, batch_size=128, n_epochs=3, gamma=0.997, tensorboard_log=sess_path)
     
     print(model.policy)
 

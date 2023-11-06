@@ -14,7 +14,7 @@ from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
 event_flags_start = 0xD747
-event_flags_end = 0xD886
+event_flags_end = 0xD761 # 0xD886 temporarily lower event flag range for obs input
 museum_ticket = (0xD754, 0)
 
 class RedGymEnv(Env):
@@ -78,7 +78,7 @@ class RedGymEnv(Env):
         ]
 
         self.output_shape = (72, 80, self.frame_stacks)
-        self.coords_pad = 32
+        self.coords_pad = 24
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
@@ -138,6 +138,10 @@ class RedGymEnv(Env):
         self.died_count = 0
         self.party_size = 0
         self.step_count = 0
+
+        # experiment! 
+        self.max_steps += 128
+
         self.max_map_progress = 0
         self.progress_reward = self.get_game_state_reward()
         self.total_reward = sum([val for _, val in self.progress_reward.items()])
@@ -314,9 +318,9 @@ class RedGymEnv(Env):
 
     def get_global_coords(self):
         x_pos, y_pos, map_n = self.get_game_coords()
-        c = (np.array([x_pos,y_pos])
+        c = (np.array([x_pos,-y_pos])
         + self.get_map_location(map_n)["coordinates"]
-        + self.coords_pad)
+        + self.coords_pad*2)
         return self.explore_map.shape[0]-c[1], c[0]
 
     def update_explore_map(self):
@@ -359,8 +363,8 @@ class RedGymEnv(Env):
         )
 
     def check_if_done(self):
-        done = self.step_count >= self.max_steps
-        # done = self.read_hp_fraction() == 0
+        done = self.step_count >= self.max_steps - 1
+        # done = self.read_hp_fraction() == 0 # end game on loss
         return done
 
     def save_and_print_info(self, done, obs):
@@ -388,6 +392,13 @@ class RedGymEnv(Env):
                         f"frame_r{self.total_reward:.4f}_{self.reset_count}_explore_map.jpeg"
                     ),
                     obs["map"][:,:, 0],
+                )
+                plt.imsave(
+                    fs_path
+                    / Path(
+                        f"frame_r{self.total_reward:.4f}_{self.reset_count}_full_explore_map.jpeg"
+                    ),
+                    self.explore_map,
                 )
                 plt.imsave(
                     fs_path
