@@ -48,11 +48,14 @@ class TensorboardCallback(BaseCallback):
 
             for key, distrib in distributions.items():
                 self.writer.add_histogram(f"env_stats_distribs/{key}", distrib, self.n_calls)
-            
-            images = self.training_env.env_method("render") # use reduce_res=False for full res screens
-            images_arr = np.array(images)
-            images_row = rearrange(images_arr, "b h w c -> h (b w) c")
-            self.logger.record("trajectory/image", Image(images_row, "HWC"), exclude=("stdout", "log", "json", "csv"))
+                
+            images = self.training_env.get_attr("recent_screens")
+            images_row = rearrange(np.array(images), "f h w c -> (c h) (f w)")
+            self.logger.record("trajectory/image", Image(images_row, "HW"), exclude=("stdout", "log", "json", "csv"))
+
+            explore_map = self.training_env.get_attr("explore_map")
+            map_row = rearrange(np.array(explore_map), "f h w -> h (f w)")
+            self.logger.record("trajectory/explore_map", Image(map_row, "HW"), exclude=("stdout", "log", "json", "csv"))
 
         return True
     
