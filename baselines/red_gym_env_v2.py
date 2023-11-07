@@ -122,7 +122,8 @@ class RedGymEnv(Env):
 
         self.agent_stats = []
 
-        self.explore_map = np.zeros((384,384), dtype=np.uint8)
+        self.explore_map_dim = 384
+        self.explore_map = np.zeros((self.explore_map_dim,self.explore_map_dim), dtype=np.uint8)
 
         self.recent_screens = np.zeros( self.output_shape, dtype=np.uint8)
         
@@ -214,7 +215,7 @@ class RedGymEnv(Env):
 
         obs = self._get_obs()
 
-        self.save_and_print_info(step_limit_reached, obs)
+        # self.save_and_print_info(step_limit_reached, obs)
 
         self.step_count += 1
 
@@ -331,16 +332,19 @@ class RedGymEnv(Env):
     def update_explore_map(self):
         c = self.get_global_coords()
         if c[0] >= self.explore_map.shape[0] or c[1] >= self.explore_map.shape[1]:
-            print(f"coord out of bounds! {c}")
+            print(f"coord out of bounds! global: {c} game: {self.get_game_coords()}")
         else:
             self.explore_map[c[0], c[1]] = 255
 
     def get_explore_map(self):
         c = self.get_global_coords()
-        return self.explore_map[
-            c[0]-self.coords_pad:c[0]+self.coords_pad,
-            c[1]-self.coords_pad:c[1]+self.coords_pad
-        ]
+        if c[0] >= self.explore_map.shape[0] or c[1] >= self.explore_map.shape[1]:
+            return np.zeros((self.coords_pad*2, self.coords_pad*2), dtype=np.uint8)
+        else:
+            return self.explore_map[
+                c[0]-self.coords_pad:c[0]+self.coords_pad,
+                c[1]-self.coords_pad:c[1]+self.coords_pad
+            ]
     
     def update_recent_screens(self, cur_screen):
         self.recent_screens = np.roll(self.recent_screens, 1, axis=2)
@@ -421,6 +425,7 @@ class RedGymEnv(Env):
             self.model_frame_writer.close()
             self.map_frame_writer.close()
 
+        """
         if done:
             self.all_runs.append(self.progress_reward)
             with open(
@@ -432,6 +437,7 @@ class RedGymEnv(Env):
                 compression="gzip",
                 mode="a",
             )
+        """
 
     def read_m(self, addr):
         return self.pyboy.get_memory_value(addr)
