@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from pyboy import PyBoy
 from pyboy.logger import log_level
 import mediapy as media
-import pandas as pd
+from einops import repeat
 
 from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
@@ -78,7 +78,7 @@ class RedGymEnv(Env):
         ]
 
         self.output_shape = (72, 80, self.frame_stacks)
-        self.coords_pad = 24
+        self.coords_pad = 12
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
@@ -90,9 +90,10 @@ class RedGymEnv(Env):
                 "screens": spaces.Box(low=0, high=255, shape=self.output_shape, dtype=np.uint8),
                 "health": spaces.Box(low=0, high=1),
                 "level": spaces.Box(low=-1, high=1, shape=(self.enc_freqs,)),
+                "badges": spaces.MultiBinary(8),
                 "events": spaces.MultiBinary((event_flags_end - event_flags_start) * 8),
                 "map": spaces.Box(low=0, high=255, shape=(
-                    self.coords_pad*2,self.coords_pad*2, 1), dtype=np.uint8),
+                    self.coords_pad*4,self.coords_pad*4, 1), dtype=np.uint8),
                 "recent_actions": spaces.MultiDiscrete([len(self.valid_actions)] * self.frame_stacks)
             }
         )
@@ -146,7 +147,7 @@ class RedGymEnv(Env):
         ])
 
         # experiment! 
-        self.max_steps += 128
+        # self.max_steps += 128
 
         self.max_map_progress = 0
         self.progress_reward = self.get_game_state_reward()
@@ -180,6 +181,7 @@ class RedGymEnv(Env):
             "screens": self.recent_screens,
             "health": np.array([self.read_hp_fraction()]),
             "level": self.fourier_encode(level_sum),
+            "badges": np.array([int(bit) for bit in f"{self.read_m(0xD356):08b}"], dtype=np.int8),
             "events": np.array(self.read_event_bits(), dtype=np.int8),
             "map": self.get_explore_map()[:, :, None],
             "recent_actions": self.recent_actions
@@ -339,12 +341,13 @@ class RedGymEnv(Env):
     def get_explore_map(self):
         c = self.get_global_coords()
         if c[0] >= self.explore_map.shape[0] or c[1] >= self.explore_map.shape[1]:
-            return np.zeros((self.coords_pad*2, self.coords_pad*2), dtype=np.uint8)
+            out = np.zeros((self.coords_pad*2, self.coords_pad*2), dtype=np.uint8)
         else:
-            return self.explore_map[
+            out = self.explore_map[
                 c[0]-self.coords_pad:c[0]+self.coords_pad,
                 c[1]-self.coords_pad:c[1]+self.coords_pad
             ]
+        return repeat(out, 'h w -> (h h2) (w w2)', h2=2, w2=2)
     
     def update_recent_screens(self, cur_screen):
         self.recent_screens = np.roll(self.recent_screens, 1, axis=2)
@@ -497,7 +500,7 @@ class RedGymEnv(Env):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         state_scores = {
-            "event": self.reward_scale * self.update_max_event_rew() * 2,
+            "event": self.reward_scale * self.update_max_event_rew() * 6,
             "level": self.reward_scale * self.get_levels_reward(),
             "heal": self.reward_scale * self.total_healing_rew * 4,
             "op_lvl": self.reward_scale * self.update_max_op_level() * 0.2,
