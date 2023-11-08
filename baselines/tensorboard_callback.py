@@ -50,11 +50,11 @@ class TensorboardCallback(BaseCallback):
                 self.writer.add_histogram(f"env_stats_distribs/{key}", distrib, self.n_calls)
                 
             images = self.training_env.get_attr("recent_screens")
-            images_row = rearrange(np.array(images), "f h w c -> (c h) (f w)")
+            images_row = rearrange(np.array(images), "(r f) h w c -> (r c h) (f w)", r=2)
             self.logger.record("trajectory/image", Image(images_row, "HW"), exclude=("stdout", "log", "json", "csv"))
 
             explore_map = self.training_env.get_attr("explore_map")
-            map_row = rearrange(np.array(explore_map), "f h w -> h (f w)")
+            map_row = rearrange(np.array(explore_map), "(r f) h w -> (r h) (f w)", r=3)
             self.logger.record("trajectory/explore_map", Image(map_row, "HW"), exclude=("stdout", "log", "json", "csv"))
 
         return True

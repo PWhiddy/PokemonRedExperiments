@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     env_config = {
                 'headless': True, 'save_final_state': False, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': 16*1024, 
+                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 2
             }
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         run = wandb.init(
             project="pokemon-train",
             id=sess_id,
-            name="restartB-5-event-patched-increasing-game-length-stack3-all-obs",
+            name="event-double-boost-stack3-all-obs",
             config=env_config,
             sync_tensorboard=True,  
             monitor_gym=True,  
@@ -66,9 +66,9 @@ if __name__ == "__main__":
     #env_checker.check_env(env)
 
     # put a checkpoint here you want to start from
-    file_name = "session_9ff8e5f0/poke_21626880_steps"
+    file_name = "" #"session_9ff8e5f0/poke_21626880_steps"
 
-    train_steps_batch = 2048
+    train_steps_batch = ep_length // 10
     
     if exists(file_name + ".zip"):
         print("\nloading checkpoint")
@@ -79,7 +79,7 @@ if __name__ == "__main__":
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=train_steps_batch, batch_size=128, n_epochs=3, gamma=0.997, tensorboard_log=sess_path)
+        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=train_steps_batch, batch_size=128, n_epochs=1, gamma=0.998, tensorboard_log=sess_path)
     
     print(model.policy)
 
