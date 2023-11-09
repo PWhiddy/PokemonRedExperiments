@@ -14,7 +14,7 @@ from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
 
 event_flags_start = 0xD747
-event_flags_end = 0xD761 # 0xD886 temporarily lower event flag range for obs input
+event_flags_end = 0xD7F6 # 0xD761 # 0xD886 temporarily lower event flag range for obs input
 museum_ticket = (0xD754, 0)
 
 class RedGymEnv(Env):
@@ -76,6 +76,11 @@ class RedGymEnv(Env):
             WindowEvent.RELEASE_BUTTON_B,
             WindowEvent.RELEASE_BUTTON_START
         ]
+
+        # load event names (parsed from https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm)
+        with open("events.json") as f:
+            event_names = json.load(f)
+        self.event_names = event_names
 
         self.output_shape = (72, 80, self.frame_stacks)
         self.coords_pad = 12
@@ -145,6 +150,8 @@ class RedGymEnv(Env):
                 self.bit_count(self.read_m(i))
                 for i in range(event_flags_start, event_flags_end)
         ])
+
+        self.current_event_flags_set = {}
 
         # experiment! 
         # self.max_steps += 128
@@ -218,6 +225,19 @@ class RedGymEnv(Env):
         obs = self._get_obs()
 
         # self.save_and_print_info(step_limit_reached, obs)
+
+        # create a map of all event flags set, with names where possible
+        if step_limit_reached:
+            for address in range(event_flags_start, event_flags_end):
+                val = self.read_m(address)
+                for idx, bit in enumerate(f"{val:08b}"):
+                    if bit == "1":
+                        # TODO this currently seems to be broken!
+                        key = f"0x{address:X}-{idx}"
+                        if key in self.event_names.keys():
+                            self.current_event_flags_set[key] = self.event_names[key]
+                        else:
+                            print(f"could not find key: {key}")
 
         self.step_count += 1
 
@@ -300,7 +320,7 @@ class RedGymEnv(Env):
         ).with_suffix(".mp4")
         self.map_frame_writer = media.VideoWriter(
             base_dir / map_name,
-            (self.coords_pad*2, self.coords_pad*2), 
+            (self.coords_pad*4, self.coords_pad*4), 
             fps=60, input_format="gray"
         )
         self.map_frame_writer.__enter__()

@@ -55,7 +55,7 @@ if __name__ == "__main__":
         run = wandb.init(
             project="pokemon-train",
             id=sess_id,
-            name="event-double-boost-stack3-all-obs",
+            name="event-range-boost-plus-logs-stack3-all-obs",
             config=env_config,
             sync_tensorboard=True,  
             monitor_gym=True,  
