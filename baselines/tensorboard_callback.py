@@ -1,4 +1,5 @@
 import os
+import json
 
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.logger import Image
@@ -56,6 +57,10 @@ class TensorboardCallback(BaseCallback):
             explore_map = self.training_env.get_attr("explore_map")
             map_row = rearrange(np.array(explore_map), "(r f) h w -> (r h) (f w)", r=3)
             self.logger.record("trajectory/explore_map", Image(map_row, "HW"), exclude=("stdout", "log", "json", "csv"))
+
+            list_of_flag_dicts = self.training_env.get_attr("current_event_flags_set")
+            merged_flags = {k: v for d in list_of_flag_dicts for k, v in d.items()}
+            self.logger.record("trajectory/all_flags", json.dumps(merged_flags))
 
         return True
     
