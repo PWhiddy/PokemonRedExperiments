@@ -5,7 +5,7 @@ from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.logger import Image
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
-from einops import rearrange
+from einops import rearrange, reduce
 
 def merge_dicts(dicts):
     sum_dict = {}
@@ -49,13 +49,17 @@ class TensorboardCallback(BaseCallback):
 
             for key, distrib in distributions.items():
                 self.writer.add_histogram(f"env_stats_distribs/{key}", distrib, self.n_calls)
+                self.logger.record(f"env_stats_max/{key}", max(distrib))
                 
             images = self.training_env.get_attr("recent_screens")
             images_row = rearrange(np.array(images), "(r f) h w c -> (r c h) (f w)", r=2)
             self.logger.record("trajectory/image", Image(images_row, "HW"), exclude=("stdout", "log", "json", "csv"))
 
-            explore_map = self.training_env.get_attr("explore_map")
-            map_row = rearrange(np.array(explore_map), "(r f) h w -> (r h) (f w)", r=3)
+            explore_map = np.array(self.training_env.get_attr("explore_map"))
+            map_sum = reduce(explore_map, "f h w -> h w", "max")
+            self.logger.record("trajectory/explore_sum", Image(map_sum, "HW"), exclude=("stdout", "log", "json", "csv"))
+
+            map_row = rearrange(explore_map, "(r f) h w -> (r h) (f w)", r=2)
             self.logger.record("trajectory/explore_map", Image(map_row, "HW"), exclude=("stdout", "log", "json", "csv"))
 
             list_of_flag_dicts = self.training_env.get_attr("current_event_flags_set")
