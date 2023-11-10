@@ -227,7 +227,8 @@ class RedGymEnv(Env):
         # self.save_and_print_info(step_limit_reached, obs)
 
         # create a map of all event flags set, with names where possible
-        if step_limit_reached:
+        #if step_limit_reached:
+        if self.step_count % 100 == 0:
             for address in range(event_flags_start, event_flags_end):
                 val = self.read_m(address)
                 for idx, bit in enumerate(f"{val:08b}"):
@@ -520,7 +521,7 @@ class RedGymEnv(Env):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         state_scores = {
-            "event": self.reward_scale * self.update_max_event_rew() * 6,
+            "event": self.reward_scale * self.update_max_event_rew() * 3,
             "level": self.reward_scale * self.get_levels_reward(),
             "heal": self.reward_scale * self.total_healing_rew * 4,
             "op_lvl": self.reward_scale * self.update_max_op_level() * 0.2,
