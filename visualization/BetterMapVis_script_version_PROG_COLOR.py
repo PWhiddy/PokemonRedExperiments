@@ -15,21 +15,20 @@ from tqdm import tqdm
 import mediapy as media
 import numpy as np
 
+
 import matplotlib as mpl
 
 def make_all_coords_arrays(filtered_dfs):
     return np.array([tdf[['x', 'y', 'map']].to_numpy().astype(np.uint8) for tdf in filtered_dfs]).transpose(1,0,2)
-
-def load_tex(name):
-    resp = requests.get(sprites[name])
-    return np.array(Image.open(io.BytesIO(resp.content)))
 
 def get_sprite_by_coords(img, x, y):
     sy = 34+17*y
     sx = 9 +17*x
     alpha_v = np.array([255, 127,  39, 255], dtype=np.uint8)
     sprite = img[sy:sy+16, sx:sx+16]
-    return np.where((sprite == alpha_v).all(axis=2).reshape(16,16,1), np.array([[[0,0,0,0]]]), sprite).astype(np.uint8)
+    sprite = np.where((sprite == alpha_v).all(axis=2).reshape(16,16,1), np.array([[[0,0,0,0]]]), sprite).astype(np.uint8)
+    mask = (sprite[:,:,3] != 0)
+    return sprite[:,:,:3], mask
 
 def game_coord_to_pixel_coord(
     x, y, map_idx, base_y):
@@ -80,38 +79,23 @@ def game_coord_to_pixel_coord(
     coord[1] = base_y - coord[1]
     return coord
 
-def add_sprite(overlay_map, sprite, coord):
+def add_sprite(overlay_map, colormap, sprite, coord, config):
     raw_base = (overlay_map[coord[1]:coord[1]+16, coord[0]:coord[0]+16, :])
-    intermediate = raw_base
-    mask = sprite[:, :, 3] != 0
-    if (mask.shape != intermediate[:,:,0].shape):
-        #print(f'requested coords: {coord[1]}-{coord[1]+16}, {coord[0]}-{coord[0]+16}')
-        #print(f'overlay_map.shape {overlay_map.shape}')
-        #print(f'mask.shape {mask.shape} intermediate[:,:,0].shape {intermediate[:,:,0].shape}')
-        #print(f'x {x} y {y} map {map_idx}')
-        return {'coords': coord}
+    if config['sprite_colors']:
+        sprite_img = np.ceil(colormap * sprite[0]).astype(np.uint8)
     else:
-        intermediate[mask] = sprite[mask]
+        sprite_img = sprite[0]
+    intermediate = np.where(sprite[1][:,:,None], sprite_img, raw_base)
     overlay_map[coord[1]:coord[1]+16, coord[0]:coord[0]+16, :] = intermediate
-    
-def blend_overlay(background, over):
-    al = over[...,3].reshape(over.shape[0], over.shape[1], 1)
-    ba = (255-al)/255
-    oa = al/255
-    return (background[..., :3]*ba + over[..., :3]*oa).astype(np.uint8)
 
-def split(img):
-    return img
-
-def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
+def render_video(fname, all_coords, walks, bg, config, inter_steps=4, add_start=True):
     debug = False
     errors = []
     sprites_rendered = 0
-    #turbo_map = get_cmap("cet_isoluminant_cgo_80_c38")._resample(8) #mpl.colormaps['turbo']._resample(8)
     turbo_map = mpl.colormaps['turbo'].resampled(8)
     with media.VideoWriter(
-        f'{fname}.mp4', split(bg).shape[:2], codec='h264', 
-        encoded_format='yuva444p', input_format='rgba', fps=60
+        fname, bg.shape[:2], codec=config['video_codec'], 
+        encoded_format='rgb24', input_format='rgb', fps=60
     ) as wr:
         step_count = len(all_coords)
         state = [{'dir': 0, 'map': 40} for _ in all_coords[0]]
@@ -164,37 +148,56 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
                     if np.linalg.norm(diff) > 16:
                         continue
                     #agent_version_float = (run // 44) / 610
-                    agent_version_float = run / (1024 / 8)
+                    #agent_version_float = run / (1024 / 8)
+                    agent_version_float = run / 1024
                     error = add_sprite(
-                        over, np.array(turbo_map(agent_version_float)) * walks[state[run]['dir']],
-                        interp_coord
+                        over, np.array(turbo_map(agent_version_float))[:3], walks[state[run]['dir']],
+                        interp_coord, config
                     )
                     if error is not None:
                         errors.append(error)
                     else:
                         sprites_rendered += 1
-                composite_img = np.where(over !=0, over, bg)
-                wr.add_image(composite_img[:,:,:])
-
                 
+                composite_img = np.where(over !=0, over, bg)
+                wr.add_image(composite_img)
+                    
+
                 perc = len(errors) / (sprites_rendered + len(errors))
                 pbar.set_description(f"draws: {sprites_rendered} errors: {len(errors)}, {perc:.2%}")
     return errors
 
-def test_render(name, dat, walks, bg):
+def test_render(name, dat, walks, bg, config):
     print(f'processing chunk with shape {dat.shape}')
     return render_video(
         name,
         dat,
         walks,
-        bg, inter_steps=8
+        bg, 
+        config, 
+        inter_steps=8
     )
 
 if __name__ == '__main__':
-    session = 'session_0b2ee8ab' #Place Session Here
-    run_dir = Path('baselines/' + session + '/')
+    '''
+    'session': (str) Session_ID you want to use to create a video
+    'episode_length': (int) Length of each episode (max_steps)
+    'map_visible': (bool) Set to True to show the Kanto Region Map
+    'background_color': (tuple) (R,G,B) Color displayed in the background of the video
+    'sprite_colors': (bool) If true, adds color to sprites
+    'file_format': (str) Extension to use when saving the video
+    'video_codec': (str) Video codec used when saving the video
+    '''
+    config = {
+                'session': 'session_0b2ee8ab', 'episode_length': 20480, 
+                'map_visible':True, 'background_color': (30,30,30), 'sprite_colors': True, 
+                'file_format': '.mp4', 'video_codec': 'h264', 
+            }
+    run_dir = Path('baselines/' + config['session'] + '/')
+    vid_dir = run_dir / 'videos'
+    vid_dir.mkdir(parents=True, exist_ok=True)
     
-    coords_save_pth = Path('visualization/coords/' + session + '_base_coords.npz')
+    coords_save_pth = run_dir / '_base_coords.npz'
     
     if coords_save_pth.is_file():
         print(f'{coords_save_pth} found, loading from file')
@@ -216,18 +219,29 @@ if __name__ == '__main__':
 
     main_map = np.array(Image.open('visualization/poke_map/pokemap_full_calibrated_CROPPED_1.png'))
     chars_img = np.array(Image.open('visualization/poke_map/characters.png'))
-    alpha_val = get_sprite_by_coords(chars_img, 1, 0)[0,0]
     walks = [get_sprite_by_coords(chars_img, x, 0) for x in [1, 4, 6, 8]]
-        
-    start_bg = main_map.copy()
 
-    run_steps = 20480 + 1
+    if config['map_visible']:
+        main_map_alpha = main_map.copy()
+        alpha_zero_indices = (main_map_alpha[:,:,3] == 0)
+        main_map_alpha[alpha_zero_indices] = config['background_color'] + (0,)
+        main_map_rgb = main_map_alpha[:,:,:3]
+    else:
+        main_map_rgb = np.zeros_like(main_map)[:,:,:3]
+        main_map_rgb[:] = config['background_color']
+
+
+    run_steps = config['episode_length'] + 1
     base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
-    #base_data = base_data[:1024]
     print(f'base_data shape: {base_data.shape}')
     
     #Break down videos into smaller chunks
     num_videos = 10
-    chunk_size = 20480 / num_videos
+    chunk_size = int(config['episode_length'] / num_videos)
     for i in range(num_videos):
-        test_render('visualization/videos/' + session + str(i), base_data[chunk_size*i:chunk_size*(i+1)], walks, start_bg)
+        test_render(vid_dir / f'video_{i}{config["file_format"]}', base_data[chunk_size*i:chunk_size*(i+1)], walks, main_map_rgb, config)
+
+    #with Pool(1) as p:
+    #    all_render_errors = p.starmap(
+    #        test_render, 
+    #        [(vid_dir / f'video_{i}{config["file_format"]}', base_data[chunk_size*i:chunk_size*(i+1)], walks, main_map_rgb, config) for i in range(num_videos)])
