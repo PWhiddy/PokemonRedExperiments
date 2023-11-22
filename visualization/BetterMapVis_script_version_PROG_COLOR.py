@@ -1,20 +1,16 @@
 import pandas as pd
 from pathlib import Path
-from colorcet.plotting import swatch, swatches
 import holoviews as hv
 hv.extension('matplotlib')
-from matplotlib.cm import get_cmap
-import matplotlib.pyplot as plt
+#from matplotlib.cm import get_cmap
+#import matplotlib.pyplot as plt
 from PIL import Image
 from einops import rearrange
-import requests
-from multiprocessing import Pool
-import io
-import json
+from multiprocessing import Manager, Pool, Process
 from tqdm import tqdm
-import mediapy as media
 import numpy as np
-
+import tempfile
+import cv2
 
 import matplotlib as mpl
 
@@ -88,110 +84,111 @@ def add_sprite(overlay_map, colormap, sprite, coord, config):
     intermediate = np.where(sprite[1][:,:,None], sprite_img, raw_base)
     overlay_map[coord[1]:coord[1]+16, coord[0]:coord[0]+16, :] = intermediate
 
-def render_video(fname, all_coords, walks, bg, config, inter_steps=4, add_start=True):
+def render_video(all_coords, walks, bg, config, file_path, queue, inter_steps=4, add_start=True):
+    #print(f'processing chunk with shape {all_coords.shape}')
+
     debug = False
     errors = []
+    img_count = 0
     sprites_rendered = 0
     turbo_map = mpl.colormaps['turbo'].resampled(8)
-    with media.VideoWriter(
-        fname, bg.shape[:2], codec=config['video_codec'], 
-        encoded_format='rgb24', input_format='rgb', fps=60
-    ) as wr:
-        step_count = len(all_coords)
-        state = [{'dir': 0, 'map': 40} for _ in all_coords[0]]
-        pbar = tqdm(range(0, step_count))
-        for idx in pbar:
-            step = all_coords[idx]
-            if idx > 0:
-                prev_step = all_coords[idx-1]
-            elif add_start:
-                prev_step = np.tile(np.array([5, 3, 40]), (all_coords.shape[1], 1))
-            else:
-                prev_step = all_coords[idx]
-            if debug:
-                print('-- step --')
-            for fract in np.arange(0,1,1/inter_steps):
-                over = np.zeros_like(bg, dtype=np.uint8)
-                for run in range(len(step)):
-                    cur = step[run]
-                    prev = prev_step[run]
-                    # cast to regular int from uint8
-                    cx, cy, px, py = map(int, [cur[0], cur[1], prev[0], prev[1]])
-                    dx = cx - px
-                    dy = cy - py
-                    total_delta = abs(dx) + abs(dy)
-                    if total_delta > 1:
-                        state[run]['map'] = cur[2]
-                    dx = min(max(dx, -1), 1)
-                    dy = -1*min(max(dy, -1), 1)
-                    if debug:
-                        print(f'x: {cx} y: {cy} dx: {dx} dy: {dy}')
-                    # only change direction if not moving between maps
-                    if cur[2] == prev[2]:
-                        if dx > 0:
-                            state[run]['dir'] = 3
-                        elif dx < 0:
-                            state[run]['dir'] = 2
-                        elif dy > 0:
-                            state[run]['dir'] = 1
-                        elif dy < 0:
-                            state[run]['dir'] = 0
+    file_path.mkdir()
+    
+    step_count = len(all_coords)
+    state = [{'dir': 0, 'map': 40} for _ in all_coords[0]]
+    for idx in range(step_count):
+        step = all_coords[idx]
+        if idx > 0:
+            prev_step = all_coords[idx-1]
+        elif add_start:
+            prev_step = np.tile(np.array([5, 3, 40]), (all_coords.shape[1], 1))
+        else:
+            prev_step = all_coords[idx]
+        if debug:
+            pass
+            #print('-- step --')
+        for fract in np.arange(0,1,1/inter_steps):
+            over = np.zeros_like(bg, dtype=np.uint8)
+            for run in range(len(step)):
+                cur = step[run]
+                prev = prev_step[run]
+                # cast to regular int from uint8
+                cx, cy, px, py = map(int, [cur[0], cur[1], prev[0], prev[1]])
+                dx = cx - px
+                dy = cy - py
+                total_delta = abs(dx) + abs(dy)
+                if total_delta > 1:
+                    state[run]['map'] = cur[2]
+                dx = min(max(dx, -1), 1)
+                dy = -1*min(max(dy, -1), 1)
+                if debug:
+                    print(f'x: {cx} y: {cy} dx: {dx} dy: {dy}')
+                # only change direction if not moving between maps
+                if cur[2] == prev[2]:
+                    if dx > 0:
+                        state[run]['dir'] = 3
+                    elif dx < 0:
+                        state[run]['dir'] = 2
+                    elif dy > 0:
+                        state[run]['dir'] = 1
+                    elif dy < 0:
+                        state[run]['dir'] = 0
 
-                    p_coord = game_coord_to_pixel_coord(
-                        cx, -cy, state[run]['map'], over.shape[0]
-                    )
-                    prev_p_coord = game_coord_to_pixel_coord(
-                        px, -py, prev[2], over.shape[0]
-                    )
-                    diff = p_coord - prev_p_coord
-                    interp_coord = prev_p_coord + (fract*(diff.astype(np.float32))).astype(np.int32)
-                    if np.linalg.norm(diff) > 16:
-                        continue
-                    #agent_version_float = (run // 44) / 610
-                    #agent_version_float = run / (1024 / 8)
-                    agent_version_float = run / 1024
-                    error = add_sprite(
-                        over, np.array(turbo_map(agent_version_float))[:3], walks[state[run]['dir']],
-                        interp_coord, config
-                    )
-                    if error is not None:
-                        errors.append(error)
-                    else:
-                        sprites_rendered += 1
-                
-                composite_img = np.where(over !=0, over, bg)
-                wr.add_image(composite_img)
-                    
+                p_coord = game_coord_to_pixel_coord(
+                    cx, -cy, state[run]['map'], over.shape[0]
+                )
+                prev_p_coord = game_coord_to_pixel_coord(
+                    px, -py, prev[2], over.shape[0]
+                )
+                diff = p_coord - prev_p_coord
+                interp_coord = prev_p_coord + (fract*(diff.astype(np.float32))).astype(np.int32)
+                if np.linalg.norm(diff) > 16:
+                    continue
+                agent_version_float = run / all_coords.shape[1]
+                error = add_sprite(
+                    over, np.array(turbo_map(agent_version_float))[:3], walks[state[run]['dir']],
+                    interp_coord, config
+                )
+                if error is not None:
+                    errors.append(error)
+                else:
+                    sprites_rendered += 1
+            image = np.where(over !=0, over, bg)
+            cv2.imwrite(str(file_path / f'image_{img_count}.png'), image)
+            img_count += 1
+        update_frequency = 10
+        if idx % update_frequency == 0:
+            queue.put(update_frequency)
+            
 
-                perc = len(errors) / (sprites_rendered + len(errors))
-                pbar.set_description(f"draws: {sprites_rendered} errors: {len(errors)}, {perc:.2%}")
-    return errors
+def update_progress_bar(queue, total):
+    with tqdm(total=total) as pbar:
+        while True:
+            message = queue.get()
+            if message == 'Done':
+                print('All Images Processed')
+                break
+            pbar.update(message)
 
-def test_render(name, dat, walks, bg, config):
-    print(f'processing chunk with shape {dat.shape}')
-    return render_video(
-        name,
-        dat,
-        walks,
-        bg, 
-        config, 
-        inter_steps=8
-    )
+
 
 if __name__ == '__main__':
     '''
-    'session': (str) Session_ID you want to use to create a video
-    'episode_length': (int) Length of each episode (max_steps)
-    'map_visible': (bool) Set to True to show the Kanto Region Map
-    'background_color': (tuple) (R,G,B) Color displayed in the background of the video
-    'sprite_colors': (bool) If true, adds color to sprites
-    'file_format': (str) Extension to use when saving the video
-    'video_codec': (str) Video codec used when saving the video
+    session: (str) Session_ID you want to use to create a video
+
+    episode_length: (int) Length of each episode (max_steps)
+    num_cpu: (int) Number of CPU threads to use
+    map_visible: (bool) Set to True to show the Kanto Region Map
+    background_color: (tuple) (R,G,B) Color displayed in the background of the video
+    sprite_colors: (bool) If true, adds color to sprites
+    file_format: (str) Extension to use when saving the video
+    video_codec: (str) Video codec used when saving the video
+    fps: (int) Video playback speed in Frames Per Second
     '''
     config = {
-                'session': 'session_0b2ee8ab', 'episode_length': 20480, 
+                'session': 'session_0b2ee8ab', 'num_cpu': 10, 'episode_length': 20480, 
                 'map_visible':True, 'background_color': (30,30,30), 'sprite_colors': True, 
-                'file_format': '.mp4', 'video_codec': 'h264', 
+                'file_format': '.avi', 'video_codec': 'XVID', 'fps': 30, 
             }
     run_dir = Path('baselines/' + config['session'] + '/')
     vid_dir = run_dir / 'videos'
@@ -231,17 +228,41 @@ if __name__ == '__main__':
         main_map_rgb[:] = config['background_color']
 
 
-    run_steps = config['episode_length'] + 1
+    run_steps = config['episode_length']# + 1
     base_data = rearrange(base_coords, '(v s) r c -> s (v r) c', v=base_coords.shape[0]//run_steps)
     print(f'base_data shape: {base_data.shape}')
     
     #Break down videos into smaller chunks
-    num_videos = 10
-    chunk_size = int(config['episode_length'] / num_videos)
-    for i in range(num_videos):
-        test_render(vid_dir / f'video_{i}{config["file_format"]}', base_data[chunk_size*i:chunk_size*(i+1)], walks, main_map_rgb, config)
+    chunk_size = config['episode_length']//config['num_cpu']
 
-    #with Pool(1) as p:
-    #    all_render_errors = p.starmap(
-    #        test_render, 
-    #        [(vid_dir / f'video_{i}{config["file_format"]}', base_data[chunk_size*i:chunk_size*(i+1)], walks, main_map_rgb, config) for i in range(num_videos)])
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir_path = Path(temp_dir)
+
+        #Create Progress Bar Process
+        manager = Manager()
+        queue = manager.Queue()
+        progress_bar_process = Process(target=update_progress_bar, args=(queue, base_data.shape[0]))
+        progress_bar_process.start()
+
+        #Create PNG Images to Be Used in the Video 
+        with Pool(config['num_cpu']) as p:
+            images = p.starmap(
+                render_video, [(base_data[chunk_size*i:chunk_size*(i+1)], walks, main_map_rgb, config, temp_dir_path / f'cpu_{i}', queue) for i in range(config['num_cpu'])]
+            )
+        
+        #End Progress Bar Process
+        queue.put('Done')
+        progress_bar_process.join()
+
+        #Create Video
+        fname = vid_dir / f'video_{config["file_format"]}'
+        fourcc = cv2.VideoWriter_fourcc(*config['video_codec'])
+        video = cv2.VideoWriter(str(fname), fourcc, config['fps'], main_map_rgb.shape[:2])
+
+        subfolders = sorted([folder for folder in temp_dir_path.iterdir() if folder.is_dir()], key=lambda x: int(x.name.split('_')[1]))
+        for folder in subfolders:
+            image_files = sorted(folder.glob('*.png'), key=lambda x: int(x.stem.split('_')[1]))
+            for filename in image_files:
+                img = cv2.imread(str(filename))
+                video.write(img)
+        video.release()
