@@ -10,3 +10,6 @@ _autoplay.mp4
 session_*
 .env
 PokemonRed.gb.state
+wandb
+*.npz
+*.mp4
