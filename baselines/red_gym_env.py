@@ -280,7 +280,7 @@ class RedGymEnv(Env):
         self._recent_memory[0, 1] = min(new_prog[1] * 64, 255)
         self._recent_memory[0, 2] = min(new_prog[2] * 128, 255)
 
-        step_limit_reached = self._check_if_done()
+        step_limit_reached = self.check_if_done()
 
         self._save_and_print_info(step_limit_reached, obs_memory)
 
@@ -444,7 +444,7 @@ class RedGymEnv(Env):
             '(w h) c -> h w c', 
             h=self._memory_height)
 
-    def _check_if_done(self) -> bool:
+    def check_if_done(self) -> bool:
         if self._early_stopping:
             done = False
             if self._step_count > 128 and self._recent_memory.sum() < (255 * 1):
