@@ -18,7 +18,7 @@ def run_recorded_actions_on_emulator_and_save_video(sess_id, instance_id, run_in
             'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'instance_id': f'{instance_id}_recorded'
     }
     env = RedGymEnv(env_config)
-    env.reset_count = run_index
+    env._reset_count = run_index
 
     obs = env.reset()
     for action in action_list:
