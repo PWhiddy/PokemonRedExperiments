@@ -23,7 +23,7 @@ def make_env(env_conf: RedGymEnvConfig, seed: int = 0) -> Callable[[], RedGymEnv
     return _init
 
 
-def run_save(save: str):
+def run_save(save: str) -> None:
     save = Path(save)
     ep_length = 2048 * 8
     sess_path = f'grid_renders/session_{save.stem}'

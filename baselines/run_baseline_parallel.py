@@ -1,6 +1,7 @@
 import uuid
 from os.path import exists
 from pathlib import Path
+from typing import Callable
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -10,7 +11,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from red_gym_env import RedGymEnv, RedGymEnvConfig
 
 
-def make_env(rank: int, env_conf: RedGymEnvConfig, seed: int = 0):
+def make_env(rank: int, env_conf: RedGymEnvConfig, seed: int = 0) -> Callable[[], RedGymEnv]:
     """
     Utility function for multiprocessed env.
     :param rank: (int) index of the subprocess

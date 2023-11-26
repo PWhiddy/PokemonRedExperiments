@@ -152,7 +152,7 @@ class RedGymEnv(Env):
         # Fields set in reset()
         self._recent_memory: NDArray = np.zeros((1,), dtype=np.uint8)
         self._recent_frames: NDArray = np.zeros((1,), dtype=np.uint8)
-        self._agent_stats: list[_AgentStats] = []
+        self.agent_stats: list[_AgentStats] = []
         self._full_frame_writer: Optional[media.VideoWriter] = None
         self._model_frame_writer: Optional[media.VideoWriter] = None
         self._levels_satisfied: bool = False
@@ -191,7 +191,7 @@ class RedGymEnv(Env):
              self._output_shape[1], self._output_shape[2]),
             dtype=np.uint8)
 
-        self._agent_stats = []
+        self.agent_stats = []
         
         if self._save_video:
             base_dir = self._s_path / Path('rollouts')
@@ -326,7 +326,7 @@ class RedGymEnv(Env):
             expl = ('frames', self._knn_index.get_current_count())
         else:
             expl = ('coord_count', len(self._seen_coords))
-        self._agent_stats.append({
+        self.agent_stats.append({
             'step': self._step_count, 'x': x_pos, 'y': y_pos, 'map': map_n,
             'map_location': self._get_map_location(map_n),
             'last_action': action,
@@ -487,7 +487,7 @@ class RedGymEnv(Env):
             self._all_runs.append(self._progress_reward)
             with open(self._s_path / Path(f'all_runs_{self._instance_id}.json'), 'w') as f:
                 json.dump(self._all_runs, f)
-            pd.DataFrame(self._agent_stats).to_csv(
+            pd.DataFrame(self.agent_stats).to_csv(
                 self._s_path / Path(f'agent_stats_{self._instance_id}.csv.gz'), compression='gzip', mode='a')
     
     def _read_m(self, addr: int) -> int:
