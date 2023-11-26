@@ -1,13 +1,15 @@
+import uuid
 from os.path import exists
 from pathlib import Path
-import uuid
-from red_gym_env import RedGymEnv
+
 from stable_baselines3 import PPO
-from stable_baselines3.common import env_checker
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
+from stable_baselines3.common.utils import set_random_seed
+from stable_baselines3.common.vec_env import SubprocVecEnv
+
+from red_gym_env import RedGymEnv
 from tensorboard_callback import TensorboardCallback
+
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -63,7 +65,6 @@ if __name__ == '__main__':
         )
         callbacks.append(WandbCallback())
 
-    #env_checker.check_env(env)
     learn_steps = 40
     # put a checkpoint here you want to start from
     file_name = 'session_e41c9eff/poke_38207488_steps' 

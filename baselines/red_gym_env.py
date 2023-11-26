@@ -1,23 +1,22 @@
 
-import sys
-import uuid 
-import os
-from math import floor, sqrt
 import json
+import sys
+import uuid
+from math import floor
 from pathlib import Path
 
-import numpy as np
-from einops import rearrange
+import hnswlib
 import matplotlib.pyplot as plt
-from skimage.transform import resize
+import mediapy as media
+import numpy as np
+import pandas as pd
+from einops import rearrange
+from gymnasium import Env, spaces
 from pyboy import PyBoy
 from pyboy.logger import log_level
-import hnswlib
-import mediapy as media
-import pandas as pd
-
-from gymnasium import Env, spaces
 from pyboy.utils import WindowEvent
+from skimage.transform import resize
+
 
 class RedGymEnv(Env):
 
