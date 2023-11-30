@@ -1,30 +1,29 @@
+import sys
 from os.path import exists
 from pathlib import Path
-import sys
-import uuid
-from red_gym_env import RedGymEnv
-from stable_baselines3 import A2C, PPO
-from stable_baselines3.common import env_checker
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from stable_baselines3.common.utils import set_random_seed
-from stable_baselines3.common.callbacks import CheckpointCallback
+from typing import Callable
 
-def make_env(rank, env_conf, seed=0):
+from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.utils import set_random_seed
+from stable_baselines3.common.vec_env import SubprocVecEnv
+
+from red_gym_env import RedGymEnv, RedGymEnvConfig
+
+
+def make_env(env_conf: RedGymEnvConfig, seed: int = 0) -> Callable[[], RedGymEnv]:
     """
     Utility function for multiprocessed env.
-    :param env_id: (str) the environment ID
-    :param num_env: (int) the number of environments you wish to have in subprocesses
+    :param env_conf: (dict) various environment config parameters
     :param seed: (int) the initial seed for RNG
-    :param rank: (int) index of the subprocess
     """
     def _init():
-        env = RedGymEnv(env_conf)
-        env.seed(seed + rank)
-        return env
+        return RedGymEnv(env_conf)
     set_random_seed(seed)
     return _init
 
-def run_save(save):
+
+def run_save(save: str) -> None:
     save = Path(save)
     ep_length = 2048 * 8
     sess_path = f'grid_renders/session_{save.stem}'
@@ -35,7 +34,7 @@ def run_save(save):
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
     num_cpu = 40  # Also sets the number of episodes per training iteration
-    env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
+    env = SubprocVecEnv([make_env(env_config) for _ in range(num_cpu)])
 
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='poke')
