@@ -30,7 +30,7 @@ def run_save(save):
     sess_path = f'grid_renders/session_{save.stem}'
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length,
                 'print_rewards': True, 'save_video': True, 'fast_video': False, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0
             }
@@ -65,10 +65,10 @@ def run_save(save):
 
 if __name__ == '__main__':
     run_save(sys.argv[1])
-    
+
 #    all_saves = list(Path('session_4da05e87').glob('*.zip'))
 #    selected_saves = [Path('session_4da05e87/init')] + all_saves[:10] + all_saves[10:120:5] + all_saves[120:420:10]
 #    len(selected_saves)
-    
+
 #    for idx, save in enumerate(selected_saves):
-        
+

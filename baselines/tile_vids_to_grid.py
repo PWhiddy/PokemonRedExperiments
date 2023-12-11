@@ -44,9 +44,9 @@ def run_ffmpeg_grid(out_path, files, screen_res_str, full_res_string, gx, gy, sh
         cmd.append("-t")
         cmd.append("10")
     cmd.append(str(out_path.resolve()))
-    
+
     #-f matroska -
-    
+
     #proc = subprocess.Popen(cmd)
     '''
     while True:
@@ -54,21 +54,21 @@ def run_ffmpeg_grid(out_path, files, screen_res_str, full_res_string, gx, gy, sh
         if not line: break
         print(line)
     '''
-    
+
     return ' '.join(cmd)
-              
+
 def make_script(path):
     sess_dir = path
     print(f"generating grid script for {sess_dir.name}")
     rollout_dir = sess_dir / "rollouts"
     all_files = list(rollout_dir.glob("full_reset_1*.mp4"))
     return run_ffmpeg_grid(
-        (sess_dir / sess_dir.name).with_suffix('.mp4'), all_files, 
+        (sess_dir / sess_dir.name).with_suffix('.mp4'), all_files,
         "160x144", "1280x720", 8, 5, short_test=False)
 
 def make_outer_script(out_file, paths):
     return run_ffmpeg_grid(
-        out_file, paths, 
+        out_file, paths,
         "1280x720", "10240x5760", 8, 8, short_test=False)
 
 def write_file(out_file, script):
