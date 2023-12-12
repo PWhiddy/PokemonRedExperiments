@@ -28,7 +28,7 @@ def get_sprite_by_coords(img, x, y):
 
 def game_coord_to_pixel_coord(
     x, y, map_idx, base_y):
-    
+
     global_offset = np.array([1056-16*12, 331]) #np.array([790, -29])
     map_offsets = {
         # https://bulbapedia.bulbagarden.net/wiki/List_of_locations_by_index_number_(Generation_I)
@@ -87,7 +87,7 @@ def add_sprite(overlay_map, sprite, coord):
     else:
         intermediate[mask] = sprite[mask]
     overlay_map[coord[1]:coord[1]+16, coord[0]:coord[0]+16, :] = intermediate
-    
+
 def blend_overlay(background, over):
     al = over[...,3].reshape(over.shape[0], over.shape[1], 1)
     ba = (255-al)/255
@@ -102,7 +102,7 @@ def render_video(fname, all_coords, walks, bg, inter_steps=4, add_start=True):
     errors = []
     sprites_rendered = 0
     with media.VideoWriter(
-        f'{fname}.mov', split(bg).shape[:2], codec='prores_ks', 
+        f'{fname}.mov', split(bg).shape[:2], codec='prores_ks',
         encoded_format='yuva444p', input_format='rgba', fps=60
     ) as wr:
         step_count = len(all_coords)
@@ -178,12 +178,12 @@ def test_render(name, dat, walks, bg):
     )
 
 if __name__ == '__main__':
-    
+
     run_dir = Path('baselines/session_4da05e87') # Path('baselines/session_ebdfe818')
 # original session_e41c9eff, main session_4da05e87, extra session_e1b6d2dc
-    
+
     coords_save_pth = Path('base_coords.npz')
-    
+
     if coords_save_pth.is_file():
         print(f'{coords_save_pth} found, loading from file')
         base_coords = np.load(coords_save_pth)['arr_0']
@@ -197,14 +197,14 @@ if __name__ == '__main__':
         base_coords = make_all_coords_arrays(dfs)
         print(f'saving {coords_save_pth}')
         np.savez_compressed(coords_save_pth, base_coords)
-    
+
     print(f'initial data shape: {base_coords.shape}')
 
     main_map = np.array(Image.open('poke_map/pokemap_full_calibrated_CROPPED_1.png'))
     chars_img = np.array(Image.open('poke_map/characters.png'))
     alpha_val = get_sprite_by_coords(chars_img, 1, 0)[0,0]
     walks = [get_sprite_by_coords(chars_img, x, 0) for x in [1, 4, 6, 8]]
-        
+
     start_bg = main_map.copy()
 
     procs = 16
@@ -215,7 +215,7 @@ if __name__ == '__main__':
         runs = base_data.shape[0] #base_data.shape[1]
         chunk_size = runs // procs
         all_render_errors = p.starmap(
-            test_render, 
+            test_render,
             #[(f'test_run_p{i}', base_data[:, chunk_size*i:chunk_size*(i+1)], walks, start_bg) for i in range(procs)])
             [(f'vids_run1/test_run_p{i}', base_data[chunk_size*i:chunk_size*(i+1)+5], walks, start_bg) for i in range(procs)])
-    
+

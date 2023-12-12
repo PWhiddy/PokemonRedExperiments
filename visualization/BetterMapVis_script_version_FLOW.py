@@ -26,7 +26,7 @@ def get_sprite_by_coords(img, x, y):
 
 def game_coord_to_global_coord(
     x, y, map_idx):
-    
+
     global_offset = np.array([1056-16*12, 331]) #np.array([790, -29])
     map_offsets = {
         # https://bulbapedia.bulbagarden.net/wiki/List_of_locations_by_index_number_(Generation_I)
@@ -85,7 +85,7 @@ def add_sprite(overlay_map, sprite, coord):
     else:
         intermediate[mask] = sprite[mask]
     overlay_map[coord[1]:coord[1]+16, coord[0]:coord[0]+16, :] = intermediate
-    
+
 def blend_overlay(background, over):
     al = over[...,3].reshape(over.shape[0], over.shape[1], 1)
     ba = (255-al)/255
@@ -165,7 +165,7 @@ def compute_flow(all_coords, inter_steps=1, add_start=True):
                 else:
                     sprites_rendered += 1
             pbar.set_description(f"draws: {sprites_rendered}")
-    
+
     return all_flows
 
 def render_arrows(fname, all_flows, arrow_sprite):
@@ -176,10 +176,10 @@ def render_arrows(fname, all_flows, arrow_sprite):
     max_y = max([k[1] for k in all_flows.keys()])
     grid_dims = (max_x - min_x, max_y - min_y)
     cell_dim = arrow_sprite.size[0] # use x only, assuming square
-     
+
     #colmap = matplotlib.cm.get_cmap('husl')
     colmap = seaborn.husl_palette(h=0.1, s=0.95, l=0.75, as_cmap=True)
-    
+
     full_img = np.zeros( ((grid_dims[0]+1) * cell_dim, (grid_dims[1]+1) * cell_dim, 4 ), dtype=np.uint8)
     for coord, total_move in tqdm(all_flows.items()):
         angle = math.atan2(-total_move[0], total_move[1])
@@ -190,13 +190,13 @@ def render_arrows(fname, all_flows, arrow_sprite):
         #color = hsv2rgb(np.array([0.5*angle/math.pi+0.5, 1.0, 1.0]))
         color = colmap(0.5*angle/math.pi+0.5)
         full_img[
-            nx * cell_dim : (nx + 1) * cell_dim, 
+            nx * cell_dim : (nx + 1) * cell_dim,
             ny * cell_dim : (ny + 1) * cell_dim
         ] = np.array(rotated_arrow) * np.array([color[0], color[1], color[2], 1.0])
     print("Writing file")
     final_img = Image.fromarray(full_img)
     final_img.save(f"{fname}.png")
-    
+
     '''
     print("generating coords")
     fig, ax = plt.subplots(figsize=grid_dims)
@@ -211,8 +211,8 @@ def render_arrows(fname, all_flows, arrow_sprite):
         cols.append(mag)
     print("rendering")
     ax.quiver(
-        [k[0] for k in all_flows.keys()], 
-        [k[1] for k in all_flows.keys()], 
+        [k[0] for k in all_flows.keys()],
+        [k[1] for k in all_flows.keys()],
         u, v,
         cols
     )
@@ -224,7 +224,7 @@ def render_arrows(fname, all_flows, arrow_sprite):
     print("saving")
     plt.savefig(f"{fname}.png")
     '''
-    
+
 def compute_flow_wrap(dat):
     print(f'processing chunk with shape {dat.shape}')
     return compute_flow(
@@ -233,12 +233,12 @@ def compute_flow_wrap(dat):
     )
 
 if __name__ == '__main__':
-    
+
     run_dir = Path('baselines/session_4da05e87') # Path('baselines/session_ebdfe818')
 # original session_e41c9eff, main session_4da05e87, extra session_e1b6d2dc
-    
+
     coords_save_pth = Path('base_coords.npz')
-    
+
     if coords_save_pth.is_file():
         print(f'{coords_save_pth} found, loading from file')
         base_coords = np.load(coords_save_pth)['arr_0']
@@ -252,7 +252,7 @@ if __name__ == '__main__':
         base_coords = make_all_coords_arrays(dfs)
         print(f'saving {coords_save_pth}')
         np.savez_compressed(coords_save_pth, base_coords)
-    
+
     print(f'initial data shape: {base_coords.shape}')
 
     main_map = np.array(Image.open('poke_map/pokemap_full_calibrated_CROPPED_1.png'))
@@ -261,7 +261,7 @@ if __name__ == '__main__':
     arrow_img = Image.open('poke_map/transparent_arrow.png').resize((arrow_size, arrow_size))
     #alpha_val = get_sprite_by_coords(chars_img, 1, 0)[0,0]
     #walks = [get_sprite_by_coords(chars_img, x, 0) for x in [1, 4, 6, 8]]
-        
+
     procs = 8
     with Pool(procs) as p:
         run_steps = 16385
@@ -271,9 +271,9 @@ if __name__ == '__main__':
         runs = base_data.shape[0] #base_data.shape[1]
         chunk_size = runs // procs
         batches_all_flows = p.map(
-            compute_flow_wrap, 
+            compute_flow_wrap,
             [base_data[chunk_size*i:chunk_size*(i+1)+5] for i in range(procs)])
-        
+
         print(f"merging {len(batches_all_flows)} batches")
         merged_flows = {}
         for batch in tqdm(batches_all_flows):
@@ -282,5 +282,5 @@ if __name__ == '__main__':
                     merged_flows[cell] += flow
                 else:
                     merged_flows[cell] = flow
-        
+
         render_arrows("map_flow_run1/full_combined_1", merged_flows, arrow_img)

@@ -39,9 +39,9 @@ if __name__ == '__main__':
                 'use_screen_explore': True, 'reward_scale': 4, 'extra_buttons': False,
                 'explore_weight': 3 # 2.5
             }
-    
+
     print(env_config)
-    
+
     num_cpu = 16  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
@@ -57,8 +57,8 @@ if __name__ == '__main__':
             project="pokemon-train",
             id=sess_id,
             config=env_config,
-            sync_tensorboard=True,  
-            monitor_gym=True,  
+            sync_tensorboard=True,
+            monitor_gym=True,
             save_code=True,
         )
         callbacks.append(WandbCallback())
@@ -66,8 +66,8 @@ if __name__ == '__main__':
     #env_checker.check_env(env)
     learn_steps = 40
     # put a checkpoint here you want to start from
-    file_name = 'session_e41c9eff/poke_38207488_steps' 
-    
+    file_name = 'session_e41c9eff/poke_38207488_steps'
+
     if exists(file_name + '.zip'):
         print('\nloading checkpoint')
         model = PPO.load(file_name, env=env)
