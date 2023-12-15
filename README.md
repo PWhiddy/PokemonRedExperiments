@@ -1,3 +1,35 @@
+# C:\Users\Suetolog\PokemonRedExperiments\visualization\Agent_Visualization.ipynb в этой папке я добавил Print 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Train RL agents to play Pokemon Red
   
 ## Watch the Video on Youtube! 
