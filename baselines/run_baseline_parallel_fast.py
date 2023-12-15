@@ -100,6 +100,9 @@ if __name__ == "__main__":
         model.n_envs = num_cpu
         model.verbose = verbose
         model.tensorboard_log = sess_path
+        model.rollout_buffer.buffer_size = n_steps
+        model.rollout_buffer.n_envs = num_cpu
+        model.rollout_buffer.reset()
     else:
         model = PPO(
             "CnnPolicy",
