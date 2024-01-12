@@ -50,6 +50,8 @@ class RedGymEnv(Env):
         self.s_path.mkdir(exist_ok=True)
         self.reset_count = 0
         self.all_runs = []
+        self.prev_x_pos = 0
+        self.prev_y_pos = 0
 
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
@@ -62,6 +64,13 @@ class RedGymEnv(Env):
             WindowEvent.PRESS_ARROW_UP,
             WindowEvent.PRESS_BUTTON_A,
             WindowEvent.PRESS_BUTTON_B,
+        ]
+
+        self.move_actions = [
+            WindowEvent.PRESS_ARROW_DOWN,
+            WindowEvent.PRESS_ARROW_LEFT,
+            WindowEvent.PRESS_ARROW_RIGHT,
+            WindowEvent.PRESS_ARROW_UP,
         ]
         
         if self.extra_buttons:
@@ -150,6 +159,7 @@ class RedGymEnv(Env):
         self.max_event_rew = 0
         self.max_level_rew = 0
         self.last_health = 1
+        self.noop_move = 0
         self.total_healing_rew = 0
         self.died_count = 0
         self.party_size = 0
@@ -190,6 +200,7 @@ class RedGymEnv(Env):
                     axis=0)
         return game_pixels_render
     
+    # Implicitly called by P00 
     def step(self, action):
 
         self.run_action_on_emulator(action)
@@ -262,6 +273,19 @@ class RedGymEnv(Env):
         x_pos = self.read_m(0xD362)
         y_pos = self.read_m(0xD361)
         map_n = self.read_m(0xD35E)
+
+        # If player was moved (up/down/left/right) but their position didn't change,
+        # it may mean they went up against an edge. For example, edge of a building, person,
+        # or the world. We should penalize this type of action in order to not waste exploration time.
+        self.noop_move = 0
+        if self.valid_actions[action] in self.move_actions \
+          and self.prev_x_pos == x_pos and self.prev_y_pos == y_pos:
+          self.noop_move = 1
+
+
+        self.prev_x_pos = x_pos
+        self.prev_y_pos = y_pos
+
         levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         if self.use_screen_explore:
             expl = ('frames', self.knn_index.get_current_count())
@@ -278,7 +302,8 @@ class RedGymEnv(Env):
             'hp': self.read_hp_fraction(),
             expl[0]: expl[1],
             'deaths': self.died_count, 'badge': self.get_badges(),
-            'event': self.progress_reward['event'], 'healr': self.total_healing_rew
+            'event': self.progress_reward['event'], 'healr': self.total_healing_rew,
+            'noop_move': self.noop_move,
         })
 
     def update_frame_knn_index(self, frame_vec):
@@ -434,6 +459,12 @@ class RedGymEnv(Env):
         # add padding so zero will read '0b100000000' instead of '0b0'
         return bin(256 + self.read_m(addr))[-bit-1] == '1'
     
+
+    def is_in_battle(self):
+        ''' Return boolean: true if player is in any type of battle, else false. '''
+        return self.read_m(0xD057) == 12
+
+    # Iterate through each of the pokemon we're carrying?
     def get_levels_sum(self):
         poke_levels = [max(self.read_m(a) - 2, 0) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
         return max(sum(poke_levels) - 4, 0) # subtract starting pokemon level
@@ -457,6 +488,16 @@ class RedGymEnv(Env):
         base = (self.base_explore if self.levels_satisfied else cur_size) * pre_rew
         post = (cur_size if self.levels_satisfied else 0) * post_rew
         return base + post
+
+    def get_movement_reward(self):
+        '''
+        Yield a reward if the player is walking in the world and makes an up/down/left/right move
+        that results in the player moving coordinates. The aim is to penalize running into walls
+        or people, wasting time.
+        '''
+        if self.noop_move and not self.is_in_battle():
+            return -1
+        return 0
     
     def get_badges(self):
         return self.bit_count(self.read_m(0xD356))
@@ -532,7 +573,8 @@ class RedGymEnv(Env):
             #'op_poke': self.reward_scale*self.max_opponent_poke * 800,
             #'money': self.reward_scale* money * 3,
             #'seen_poke': self.reward_scale * seen_poke_count * 400,
-            'explore': self.reward_scale * self.get_knn_reward()
+            'explore': self.reward_scale * self.get_knn_reward(),
+            'noop_move': self.reward_scale * self.get_movement_reward()
         }
         
         return state_scores
