@@ -27,10 +27,12 @@ if __name__ == '__main__':
 
 
     ep_length = 2048 * 8
+#    ep_length = 500
     sess_path = Path(f'session_{str(uuid.uuid4())[:8]}')
 
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
+#                'headless': False, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
@@ -38,7 +40,8 @@ if __name__ == '__main__':
             }
     
     
-    num_cpu = 44 #64 #46  # Also sets the number of episodes per training iteration
+    num_cpu = 46 #64 #46  # Also sets the number of episodes per training iteration
+#    num_cpu = 1 #64 #46  # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
