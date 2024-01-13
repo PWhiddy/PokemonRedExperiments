@@ -22,6 +22,7 @@ import gymnasium as gym
 from gymnasium import spaces
 
 from pyboy.utils import WindowEvent
+from memory_addresses import *
 
 class RedGymEnv(gym.Env):
 
@@ -237,13 +238,13 @@ class RedGymEnv(gym.Env):
         self.model_frame_writer.add_image(self.render(reduce_res=True, update_mem=False))
     
     def append_agent_stats(self):
-        x_pos = self.read_m(0xD362)
-        y_pos = self.read_m(0xD361)
-        map_n = self.read_m(0xD35E)
-        levels = [self.read_m(a) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        x_pos = self.read_m(X_POS_ADDRESS)
+        y_pos = self.read_m(Y_POS_ADDRESS)
+        map_n = self.read_m(MAP_N_ADDRESS)
+        levels = [self.read_m(a) for a in LEVELS_ADDRESSES]
         self.agent_stats.append({
             'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n, 
-            'pcount': self.read_m(0xD163), 'levels': levels, 'ptypes': self.read_party(),
+            'pcount': self.read_m(PARTY_SIZE_ADDRESS), 'levels': levels, 'ptypes': self.read_party(),
             'hp': self.read_hp_fraction(),
             'frames': self.knn_index.get_current_count(),
             'deaths': self.died_count, 'badge': self.get_badges(),
@@ -384,7 +385,7 @@ class RedGymEnv(gym.Env):
         return bin(256 + self.read_m(addr))[-bit-1] == '1'
     
     def get_levels_sum(self):
-        poke_levels = [max(self.read_m(a) - 2, 0) for a in [0xD18C, 0xD1B8, 0xD1E4, 0xD210, 0xD23C, 0xD268]]
+        poke_levels = [max(self.read_m(a) - 2, 0) for a in LEVELS_ADDRESSES]
         return max(sum(poke_levels) - 4, 0) # subtract starting pokemon level
     
     def get_levels_reward(self):
@@ -407,10 +408,10 @@ class RedGymEnv(gym.Env):
         return base + post
     
     def get_badges(self):
-        return self.bit_count(self.read_m(0xD356))
+        return self.bit_count(self.read_m(BADGE_COUNT_ADDRESS))
 
     def read_party(self):
-        return [self.read_m(addr) for addr in [0xD164, 0xD165, 0xD166, 0xD167, 0xD168, 0xD169]]
+        return [self.read_m(addr) for addr in PARTY_ADDRESSES]
     
     def update_heal_reward(self):
         cur_health = self.read_hp_fraction()
@@ -425,7 +426,7 @@ class RedGymEnv(gym.Env):
                 self.died_count += 1
     
     def get_all_events_reward(self):
-        return max(sum([self.bit_count(self.read_m(i)) for i in range(0xD747, 0xD886)]) - 13, 0)
+        return max(sum([self.bit_count(self.read_m(i)) for i in range(EVENT_FLAGS_START_ADDRESS, EVENT_FLAGS_END_ADDRESS)]) - 13, 0)
   
     def get_game_state_reward(self, print_stats=False):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
@@ -477,7 +478,7 @@ class RedGymEnv(gym.Env):
     
     def update_max_op_level(self):
         #opponent_level = self.read_m(0xCFE8) - 5 # base level
-        opponent_level = max([self.read_m(a) for a in [0xD8C5, 0xD8F1, 0xD91D, 0xD949, 0xD975, 0xD9A1]]) - 5
+        opponent_level = max([self.read_m(a) for a in OPPONENT_LEVELS_ADDRESSES]) - 5
         #if opponent_level >= 7:
         #    self.save_screenshot('highlevelop')
         self.max_opponent_level = max(self.max_opponent_level, opponent_level)
@@ -489,8 +490,8 @@ class RedGymEnv(gym.Env):
         return self.max_event_rew
 
     def read_hp_fraction(self):
-        hp_sum = sum([self.read_hp(add) for add in [0xD16C, 0xD198, 0xD1C4, 0xD1F0, 0xD21C, 0xD248]])
-        max_hp_sum = sum([self.read_hp(add) for add in [0xD18D, 0xD1B9, 0xD1E5, 0xD211, 0xD23D, 0xD269]])
+        hp_sum = sum([self.read_hp(add) for add in HP_ADDRESSES])
+        max_hp_sum = sum([self.read_hp(add) for add in MAX_HP_ADDRESSES])
         return hp_sum / max_hp_sum
 
     def read_hp(self, start):
@@ -507,6 +508,6 @@ class RedGymEnv(gym.Env):
         return 10 * ((num >> 4) & 0x0f) + (num & 0x0f)
     
     def read_money(self):
-        return (100 * 100 * self.read_bcd(self.read_m(0xD347)) + 
-                100 * self.read_bcd(self.read_m(0xD348)) +
-                self.read_bcd(self.read_m(0xD349)))
+        return (100 * 100 * self.read_bcd(self.read_m(MONEY_ADDRESS_1)) + 
+                100 * self.read_bcd(self.read_m(MONEY_ADDRESS_2)) +
+                self.read_bcd(self.read_m(MONEY_ADDRESS_3)))
