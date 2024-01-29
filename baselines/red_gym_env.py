@@ -11,7 +11,7 @@ from einops import rearrange
 import matplotlib.pyplot as plt
 from skimage.transform import resize
 from pyboy import PyBoy
-from pyboy.logger import log_level
+#from pyboy.logger import log_level
 import hnswlib
 import mediapy as media
 import pandas as pd
@@ -99,7 +99,7 @@ class RedGymEnv(Env):
 
         head = 'headless' if config['headless'] else 'SDL2'
 
-        log_level("ERROR")
+        #log_level("ERROR")
         self.pyboy = PyBoy(
                 config['gb_path'],
                 debugging=False,
@@ -115,7 +115,7 @@ class RedGymEnv(Env):
             
         self.reset()
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options=None):
         self.seed = seed
         # restart game, skipping credits
         with open(self.init_state, "rb") as f:
