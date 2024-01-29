@@ -20,7 +20,12 @@ class StreamWrapper(gym.Wrapper):
         self.upload_interval = 200
         self.steam_step_counter = 0
         self.coord_list = []
-        self.emulator = env.pyboy if env.pyboy is not None else env.game
+        if hasattr(env, "pyboy"):
+            self.emulator = env.pyboy
+        elif hasattr(env, "game"):
+            self.emulator = env.game
+        else:
+            raise Exception("Could not find emulator!")
 
     def step(self, action):
 
