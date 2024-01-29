@@ -10,12 +10,12 @@ MAP_N_ADDRESS = 0xD35E
 class StreamWrapper(gym.Wrapper):
     def __init__(self, env, stream_metadata={}):
         super().__init__(env)
-        ws_address = "wss://poke-ws-test-ulsjzjzwpa-ue.a.run.app/broadcast"
+        self.ws_address = "wss://poke-ws-test-ulsjzjzwpa-ue.a.run.app/broadcast"
         self.stream_metadata = stream_metadata
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.websocket = self.loop.run_until_complete(
-                websockets.connect(ws_address)
+                websockets.connect(self.ws_address)
         )
         self.upload_interval = 200
         self.steam_step_counter = 0
@@ -31,7 +31,7 @@ class StreamWrapper(gym.Wrapper):
 
         if self.steam_step_counter >= self.upload_interval:
             self.loop.run_until_complete(
-                send_message(
+                self.broadcast_ws_message(
                     self.websocket, 
                     json.dumps(
                         {
@@ -48,5 +48,12 @@ class StreamWrapper(gym.Wrapper):
 
         return self.env.step(action)
 
-async def send_message(ws, message):
-    await ws.send(message)
+    async def broadcast_ws_message(self, ws, message):
+        try:
+            await ws.send(message)
+        except Exception as e:
+            print(f"Error while broadcasting stats via websocket: {e}")
+
+            self.websocket = self.loop.run_until_complete(
+                websockets.connect(self.ws_address)
+            )
