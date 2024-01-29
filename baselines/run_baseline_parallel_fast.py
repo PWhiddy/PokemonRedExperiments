@@ -2,6 +2,7 @@ from os.path import exists
 from pathlib import Path
 import uuid
 from red_gym_env import RedGymEnv
+from stream_agent_wrapper import StreamWrapper
 from stable_baselines3 import PPO
 from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
@@ -18,7 +19,15 @@ def make_env(rank, env_conf, seed=0):
     :param rank: (int) index of the subprocess
     """
     def _init():
-        env = RedGymEnv(env_conf)
+        env = StreamWrapper(
+            RedGymEnv(env_conf), 
+            stream_metadata = {
+                "user": "pw", 
+                "env_id": rank,
+                "color": "#0033ff",
+                "extra": "", # any extra text you put here will be displayed
+            }
+        )
         env.reset(seed=(seed + rank))
         return env
     set_random_seed(seed)
@@ -34,7 +43,7 @@ if __name__ == '__main__':
     env_config = {
                 'headless': True, 'save_final_state': True, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
-                'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
+                'print_rewards': False, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 
                 'use_screen_explore': True, 'reward_scale': 4, 'extra_buttons': False,
                 'explore_weight': 3 # 2.5
