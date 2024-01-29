@@ -32,7 +32,6 @@ class StreamWrapper(gym.Wrapper):
         if self.steam_step_counter >= self.upload_interval:
             self.loop.run_until_complete(
                 self.broadcast_ws_message(
-                    self.websocket, 
                     json.dumps(
                         {
                           "metadata": self.stream_metadata,
@@ -48,12 +47,9 @@ class StreamWrapper(gym.Wrapper):
 
         return self.env.step(action)
 
-    async def broadcast_ws_message(self, ws, message):
+    async def broadcast_ws_message(self, message):
         try:
-            await ws.send(message)
-        except Exception as e:
-            print(f"Error while broadcasting stats via websocket: {e}")
-
-            self.websocket = self.loop.run_until_complete(
-                websockets.connect(self.ws_address)
-            )
+            await self.websocket.send(message)
+        except websockets.exceptions.WebSocketException as e:
+            # attempt reconnection after a timeout or error
+            self.websocket = await websockets.connect(self.ws_address)
