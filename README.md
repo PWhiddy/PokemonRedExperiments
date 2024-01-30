@@ -1,4 +1,9 @@
 # Train RL agents to play Pokemon Red
+
+### New 1-29-24! - [Multiplayer Live Training Broadcast](https://github.com/pwhiddy/pokerl-map-viz/)  🎦 🔴 [View Here](https://pwhiddy.github.io/pokerl-map-viz/)
+Stream your training session to a shared global game map using the [Broadcast Wrapper](/baselines/stream_agent_wrapper.py)  
+
+See how in [Training Broadcast](#training-broadcast) section
   
 ## Watch the Video on Youtube! 
 
@@ -44,14 +49,34 @@ This version still needs some tuning, but it can clear the first gym in a small 
 2. Run:  
 ```python run_baseline_parallel_fast.py```
 
-## Tracking Training Progress 📈 
+## Tracking Training Progress 📈
+
+### Training Broadcast
+Stream your training session to a shared global game map using the [Broadcast Wrapper](/baselines/stream_agent_wrapper.py) on your environment like this:
+```python
+env = StreamWrapper(
+            env, 
+            stream_metadata = { # All of this is part is optional
+                "user": "pw", # choose your own username
+                "env_id": id, # environment identifier
+                "color": "#0033ff", # choose your color :)
+                "extra": "", # any extra text you put here will be displayed
+            }
+        )
+```
+
+Hack on the broadcast viewing client or set up your own local stream with this repo:  
+  
+https://github.com/pwhiddy/pokerl-map-viz/
+
+### Local Metrics
 The current state of each game is rendered to images in the session directory.   
 You can track the progress in tensorboard by moving into the session directory and running:  
 ```tensorboard --logdir .```  
 You can then navigate to `localhost:6006` in your browser to view metrics.  
 To enable wandb integration, change `use_wandb_logging` in the training script to `True`.
 
-## Extra 🐜
+## Static Visualization 🐜
 Map visualization code can be found in `visualization/` directory.
 
 ## Supporting Libraries
