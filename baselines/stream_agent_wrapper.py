@@ -15,7 +15,7 @@ class StreamWrapper(gym.Wrapper):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.websocket = self.loop.run_until_complete(
-                websockets.connect(self.ws_address)
+                self.establish_wc_connection()
         )
         self.upload_interval = 200
         self.steam_step_counter = 0
@@ -35,6 +35,7 @@ class StreamWrapper(gym.Wrapper):
         self.coord_list.append([x_pos, y_pos, map_n])
 
         if self.steam_step_counter >= self.upload_interval:
+            self.stream_metadata["extra"] = f"lvls: {self.get_levels_sum()}"
             self.loop.run_until_complete(
                 self.broadcast_ws_message(
                     json.dumps(
@@ -53,8 +54,16 @@ class StreamWrapper(gym.Wrapper):
         return self.env.step(action)
 
     async def broadcast_ws_message(self, message):
+        if self.websocket is None:
+            await self.establish_wc_connection()
+        if self.websocket is not None:
+            try:
+                await self.websocket.send(message)
+            except websockets.exceptions.WebSocketException as e:
+                self.websocket = None
+
+    async def establish_wc_connection(self):
         try:
-            await self.websocket.send(message)
-        except websockets.exceptions.WebSocketException as e:
-            # attempt reconnection after a timeout or error
             self.websocket = await websockets.connect(self.ws_address)
+        except:
+            self.websocket = None
