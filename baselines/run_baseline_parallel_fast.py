@@ -64,7 +64,6 @@ if __name__ == '__main__':
         callbacks.append(WandbCallback())
 
     #env_checker.check_env(env)
-    learn_steps = 40
     # put a checkpoint here you want to start from
     file_name = 'session_e41c9eff/poke_38207488_steps' 
     
@@ -78,9 +77,9 @@ if __name__ == '__main__':
         model.rollout_buffer.reset()
     else:
         model = PPO('CnnPolicy', env, verbose=1, n_steps=ep_length // 8, batch_size=128, n_epochs=3, gamma=0.998, tensorboard_log=sess_path)
-    
-    for i in range(learn_steps):
-        model.learn(total_timesteps=(ep_length)*num_cpu*1000, callback=CallbackList(callbacks))
+
+    # run for up to 5k episodes
+    model.learn(total_timesteps=(ep_length)*num_cpu*5000, callback=CallbackList(callbacks))
 
     if use_wandb_logging:
         run.finish()
