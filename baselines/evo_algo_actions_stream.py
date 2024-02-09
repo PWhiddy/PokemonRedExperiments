@@ -300,6 +300,8 @@ if __name__ == '__main__':
         
         # Replace the models except for the top 2
         models = top_models + new_models[:15] + new_models[15:]
+        # completely replace one model
+        models[-1] = CNNPolicy((3, 72, 80), envs.action_space.n)
 
          # Checkpointing every 10 episodes
         if (episode + 1) % 20 == 0:
