@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from pyboy import PyBoy
 
-
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -99,6 +99,8 @@ class RedGymEnv(Env):
         with open(self.init_state, "rb") as f:
             self.pyboy.load_state(f)
 
+        print(f"last round - levels: {self.best_levels} seen_coords: {self.best_coords}")
+
         self.step_count = 0
 
         self.best_levels = 0
@@ -177,9 +179,9 @@ def make_env(rank, env_conf, seed=0):
         env = StreamWrapper(
             env, 
             stream_metadata = { # All of this is part is optional
-                "user": "pw-random", # choose your own username
+                "user": "pw-evo", # choose your own username
                 "env_id": rank, # environment identifier
-                "color": "#332299", # choose your color :)
+                "color": "#662299", # choose your color :)
                 "extra": "", # any extra text you put here will be displayed
             }
         )
@@ -233,6 +235,11 @@ if __name__ == '__main__':
             }
     
     print(env_config)
+
+
+    checkpoint_dir = "evo_checkpoints"
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
     
     num_cpu = 32  # Also sets the number of episodes per training iteration
     envs = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
@@ -248,7 +255,6 @@ if __name__ == '__main__':
 
     def run_episodes(envs, models, steps_to_run):
         obs = envs.reset()
-        dones = [False] * num_cpu
         total_rewards = np.zeros(num_cpu)
         for _ in range(steps_to_run):
             actions = []
@@ -261,11 +267,12 @@ if __name__ == '__main__':
             total_rewards += rewards
         return total_rewards
 
-    num_episodes = 100  # Define the number of episodes
+    num_episodes = 100000  # Define the number of episodes
 
     for episode in range(num_episodes):
         print(f"starting episode {episode}")
-        rewards = run_episodes(envs, models, 200)
+        rewards = run_episodes(envs, models, 400)
+        print(f"all rewards: {rewards}")
         bests = sorted(rewards)[-2:]
         print(f"getting best models - rewards {bests}")
         # Selection and reproduction logic as before, with necessary adjustments
@@ -283,12 +290,8 @@ if __name__ == '__main__':
         # Replace the models except for the top 2
         models = top_models + new_models[:15] + new_models[15:]
 
-
-    """
-    for step in range(2**30):
-        #action = env.action_space.sample()  # agent policy that uses the observation and info
-        actions = np.random.randint(low=0, high=5, size=num_cpu)
-        #print(action)
-        things = env.step(actions)
-        #print(f"\r{step}")
-    """
+         # Checkpointing every 10 episodes
+        if (episode + 1) % 20 == 0:
+            checkpoint_path = os.path.join(checkpoint_dir, f"best_model_ep_{episode+1}.pt")
+            torch.save(top_models[0].state_dict(), checkpoint_path)
+            print(f"Checkpointed best model at episode {episode+1} with reward: {bests[0]}")
