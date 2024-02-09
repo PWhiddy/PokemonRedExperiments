@@ -4,6 +4,7 @@ import uuid
 from pathlib import Path
 
 import numpy as np
+from einops import reduce
 from pyboy import PyBoy
 
 import os
@@ -70,7 +71,7 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(3,144,160), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(3,72,80), dtype=np.uint8)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -87,6 +88,11 @@ class RedGymEnv(Env):
 
         if not config['headless']:
             self.pyboy.set_emulation_speed(6)
+
+        self.best_levels = 0
+        self.best_coords = 0
+
+        self.reset_count = 0
             
         self.reset()
     
@@ -107,6 +113,8 @@ class RedGymEnv(Env):
         self.best_coords = 0
 
         self.seen_coords = {}
+
+        self.reset_count += 1
         
         return self.render(), {}
 
@@ -118,7 +126,7 @@ class RedGymEnv(Env):
         self.seen_coords[coord_string] = self.step_count
 
     def render(self):
-        return self.screen.screen_ndarray().transpose(2,0,1)
+        return reduce(self.screen.screen_ndarray(), '(h 2) (w 2) c -> h w c', 'mean').transpose(2,0,1)
     
     def step(self, action):
 
@@ -244,7 +252,7 @@ if __name__ == '__main__':
     num_cpu = 32  # Also sets the number of episodes per training iteration
     envs = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
-    models = [CNNPolicy((3, 144, 160), envs.action_space.n) for _ in range(num_cpu)]  # Adjust input shape based on the actual env
+    models = [CNNPolicy((3, 72, 80), envs.action_space.n) for _ in range(num_cpu)]  # Adjust input shape based on the actual env
 
 
     def mutate_model(model, strength):
@@ -269,9 +277,12 @@ if __name__ == '__main__':
 
     num_episodes = 100000  # Define the number of episodes
 
+    ep_len = 10
+
     for episode in range(num_episodes):
         print(f"starting episode {episode}")
-        rewards = run_episodes(envs, models, 400)
+        rewards = run_episodes(envs, models, ep_len)
+        ep_len += 2
         print(f"all rewards: {rewards}")
         bests = sorted(rewards)[-2:]
         print(f"getting best models - rewards {bests}")
