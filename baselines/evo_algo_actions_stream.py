@@ -267,9 +267,13 @@ if __name__ == '__main__':
         for _ in range(steps_to_run):
             actions = []
             for model, ob in zip(models, obs):
+
                 ob_tensor = torch.tensor(ob).unsqueeze(0).float()
-                action_prob = model(ob_tensor)
-                action = torch.argmax(action_prob, dim=1).item()
+
+                logits = model(ob_tensor)  # Assuming the model outputs raw scores for each action
+                probabilities = torch.functional.softmax(logits, dim=1)  # Convert logits to probabilities
+                action = torch.multinomial(probabilities, 1).item()  # Sample an action from the probabilities
+
                 actions.append(action)
             obs, rewards, dones, _ = envs.step(actions)
             total_rewards += rewards
