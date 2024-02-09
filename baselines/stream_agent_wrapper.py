@@ -35,7 +35,6 @@ class StreamWrapper(gym.Wrapper):
         self.coord_list.append([x_pos, y_pos, map_n])
 
         if self.steam_step_counter >= self.upload_interval:
-            self.stream_metadata["extra"] = f"lvls: {self.get_levels_sum()}"
             self.loop.run_until_complete(
                 self.broadcast_ws_message(
                     json.dumps(
