@@ -71,7 +71,7 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(3,72,80), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(3,72,80), dtype=np.float32)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -126,7 +126,7 @@ class RedGymEnv(Env):
         self.seen_coords[coord_string] = self.step_count
 
     def render(self):
-        return reduce(self.screen.screen_ndarray(), '(h 2) (w 2) c -> h w c', 'mean').transpose(2,0,1)
+        return reduce(self.screen.screen_ndarray().astype(np.float32) / 255.0, '(h 2) (w 2) c -> h w c', 'mean').transpose(2,0,1)
     
     def step(self, action):
 
