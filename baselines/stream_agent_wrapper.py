@@ -20,6 +20,7 @@ class StreamWrapper(gym.Wrapper):
         self.upload_interval = 200
         self.steam_step_counter = 0
         self.coord_list = []
+        self.env = env
         if hasattr(env, "pyboy"):
             self.emulator = env.pyboy
         elif hasattr(env, "game"):
@@ -35,6 +36,7 @@ class StreamWrapper(gym.Wrapper):
         self.coord_list.append([x_pos, y_pos, map_n])
 
         if self.steam_step_counter >= self.upload_interval:
+            self.stream_metadata["extra"] = f"Generation {self.env.reset_count}"
             self.loop.run_until_complete(
                 self.broadcast_ws_message(
                     json.dumps(
