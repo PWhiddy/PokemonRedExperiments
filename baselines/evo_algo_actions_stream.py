@@ -70,7 +70,7 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(1,), dtype=np.uint8)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(3,144,160), dtype=np.uint8)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -83,12 +83,15 @@ class RedGymEnv(Env):
                 hide_window='--quiet' in sys.argv,
             )
 
-        #self.screen = self.pyboy.botsupport_manager().screen()
+        self.screen = self.pyboy.botsupport_manager().screen()
 
         if not config['headless']:
             self.pyboy.set_emulation_speed(6)
             
         self.reset()
+    
+    def read_m(self, addr):
+        return self.pyboy.get_memory_value(addr)
 
     def reset(self, seed=None, options=None):
         self.seed = seed
@@ -112,18 +115,20 @@ class RedGymEnv(Env):
         coord_string = f"x:{x_pos} y:{y_pos} m:{map_n}"
         self.seen_coords[coord_string] = self.step_count
 
-    def render(self, reduce_res=True, add_memory=True, update_mem=True):
-        return np.array([1.0], dtype=np.uint8)
+    def render(self):
+        return self.screen.screen_ndarray().transpose(2,0,1)
     
     def step(self, action):
 
         self.run_action_on_emulator(action)
 
         level_rew = 0
-        levels = [self.read_m(a) for a in LEVELS_ADDRESSES]
+        levels = sum([self.read_m(a) for a in LEVELS_ADDRESSES]) - 6
         if levels > self.best_levels:
             level_rew = (levels - self.best_levels) * 1.0
             self.best_levels = levels
+
+        self.update_seen_coords()
 
         coord_rew = 0
         coord_count = len(self.seen_coords)
@@ -241,11 +246,11 @@ if __name__ == '__main__':
                 noise = torch.randn_like(param) * strength
                 param.add_(noise)
 
-    def run_episodes(envs, models):
+    def run_episodes(envs, models, steps_to_run):
         obs = envs.reset()
         dones = [False] * num_cpu
         total_rewards = np.zeros(num_cpu)
-        while not all(dones):
+        for _ in range(steps_to_run):
             actions = []
             for model, ob in zip(models, obs):
                 ob_tensor = torch.tensor(ob).unsqueeze(0).float()
@@ -260,7 +265,7 @@ if __name__ == '__main__':
 
     for episode in range(num_episodes):
         print(f"starting episode {episode}")
-        rewards = run_episodes(envs, models)
+        rewards = run_episodes(envs, models, 200)
         bests = sorted(rewards)[-2:]
         print(f"getting best models - rewards {bests}")
         # Selection and reproduction logic as before, with necessary adjustments
