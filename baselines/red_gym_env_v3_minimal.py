@@ -116,6 +116,9 @@ class PokeRedEnv(Env):
         self.max_map_progress = 0
         self.reset_count += 1
 
+        self.max_levels = 0
+        self.max_coords = 0
+
         return self._get_obs(), {}
 
     def init_map_mem(self):
@@ -178,7 +181,18 @@ class PokeRedEnv(Env):
 
         self.step_count += 1
 
-        return obs, 0, False, step_limit_reached, {}
+        level_sum = self.get_levels_sum()
+        coord_count = len(self.seen_coords)
+        new_rew = 0
+        if level_sum > self.max_levels:
+            new_rew += level_sum - self.max_levels
+            self.max_levels = level_sum
+
+        if coord_count > self.max_coords:
+            new_rew += 0.04 * (coord_count - self.max_coords)
+            self.max_coords = coord_count
+
+        return obs, new_rew, False, step_limit_reached, {}
     
     def run_action_on_emulator(self, action):
         # press button then release after some steps
