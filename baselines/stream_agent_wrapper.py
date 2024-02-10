@@ -20,6 +20,7 @@ class StreamWrapper(gym.Wrapper):
         )
         self.upload_interval = 250
         self.steam_step_counter = 0
+        self.env = env
         self.coord_list = []
         if hasattr(env, "pyboy"):
             self.emulator = env.pyboy
@@ -36,6 +37,7 @@ class StreamWrapper(gym.Wrapper):
         self.coord_list.append([x_pos, y_pos, map_n])
 
         if self.steam_step_counter >= self.upload_interval:
+            self.stream_metadata["extra"] = f"coords: {len(self.env.seen_coords)}"
             self.loop.run_until_complete(
                 self.broadcast_ws_message(
                     json.dumps(

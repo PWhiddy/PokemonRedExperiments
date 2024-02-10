@@ -51,9 +51,9 @@ class TensorboardCallback(BaseCallback):
                 self.writer.add_histogram(f"env_stats_distribs/{key}", distrib, self.n_calls)
                 self.logger.record(f"env_stats_max/{key}", max(distrib))
                 
-            images = self.training_env.get_attr("recent_screens")
-            images_row = rearrange(np.array(images), "(r f) h w c -> (r c h) (f w)", r=2)
-            self.logger.record("trajectory/image", Image(images_row, "HW"), exclude=("stdout", "log", "json", "csv"))
+            #images = self.training_env.get_attr("recent_screens")
+            #images_row = rearrange(np.array(images), "(r f) h w c -> (r c h) (f w)", r=2)
+            #self.logger.record("trajectory/image", Image(images_row, "HW"), exclude=("stdout", "log", "json", "csv"))
 
             explore_map = np.array(self.training_env.get_attr("explore_map"))
             map_sum = reduce(explore_map, "f h w -> h w", "max")
