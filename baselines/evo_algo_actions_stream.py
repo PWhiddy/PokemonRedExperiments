@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from einops import reduce
 from pyboy import PyBoy
+import random
 
 import os
 import torch
@@ -71,7 +72,7 @@ class RedGymEnv(Env):
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
-        self.observation_space = spaces.Box(low=0, high=255, shape=(3,72,80), dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=(3,36,40), dtype=np.float32)
 
         head = 'headless' if config['headless'] else 'SDL2'
 
@@ -126,7 +127,7 @@ class RedGymEnv(Env):
         self.seen_coords[coord_string] = self.step_count
 
     def render(self):
-        return reduce(self.screen.screen_ndarray().astype(np.float32) / 255.0, '(h 2) (w 2) c -> h w c', 'mean').transpose(2,0,1)
+        return reduce(self.screen.screen_ndarray().astype(np.float32) / 255.0, '(h 4) (w 4) c -> h w c', 'mean').transpose(2,0,1)
     
     def step(self, action):
 
@@ -212,9 +213,9 @@ class CNNPolicy(nn.Module):
         
         conv_out_size = self._get_conv_out(input_shape)
         self.fc = nn.Sequential(
-            nn.Linear(conv_out_size, 256),
+            nn.Linear(conv_out_size, 64),
             nn.ReLU(),
-            nn.Linear(256, num_actions)
+            nn.Linear(64, num_actions)
         )
     
     def _get_conv_out(self, shape):
@@ -252,7 +253,7 @@ if __name__ == '__main__':
     num_cpu = 32  # Also sets the number of episodes per training iteration
     envs = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
 
-    models = [CNNPolicy((3, 72, 80), envs.action_space.n) for _ in range(num_cpu)]  # Adjust input shape based on the actual env
+    models = [CNNPolicy((3, 36, 40), envs.action_space.n) for _ in range(num_cpu)]  # Adjust input shape based on the actual env
 
 
     def mutate_model(model, strength):
@@ -271,8 +272,10 @@ if __name__ == '__main__':
                 ob_tensor = torch.tensor(ob).unsqueeze(0).float()
 
                 logits = model(ob_tensor)  # Assuming the model outputs raw scores for each action
-                probabilities = torch.functional.softmax(logits, dim=1)  # Convert logits to probabilities
+                probabilities = torch.nn.functional.softmax(logits, dim=1)  # Convert logits to probabilities
                 action = torch.multinomial(probabilities, 1).item()  # Sample an action from the probabilities
+                #action_prob = model(ob_tensor)
+                #action = torch.argmax(action_prob, dim=1).item()
 
                 actions.append(action)
             obs, rewards, dones, _ = envs.step(actions)
@@ -281,20 +284,21 @@ if __name__ == '__main__':
 
     num_episodes = 100000  # Define the number of episodes
 
-    ep_len = 10
+    ep_len = 1000
 
     for episode in range(num_episodes):
         print(f"starting episode {episode}")
         rewards = run_episodes(envs, models, ep_len)
-        ep_len += 2
+        if episode % 2 == 0:
+            ep_len += 1
         print(f"all rewards: {rewards}")
-        bests = sorted(rewards)[-2:]
+        bests = sorted(rewards)[-3:]
         print(f"getting best models - rewards {bests}")
         # Selection and reproduction logic as before, with necessary adjustments
-        sorted_indices = np.argsort(rewards)[-2:]  # Get indices of the top 2 models
+        sorted_indices = np.argsort(rewards)[-3:]  # Get indices of the top 3 models
         top_models = [models[i] for i in sorted_indices]
         print("mutating models...")
-        mutation_strengths = np.linspace(0.0001, 0.1, 15)
+        mutation_strengths = np.linspace(0.00005, 0.04, 10)
         new_models = []
         for i, strength in enumerate(mutation_strengths):
             for top_model in top_models:
@@ -302,10 +306,11 @@ if __name__ == '__main__':
                 mutate_model(model_copy, strength)
                 new_models.append(model_copy)
         
-        # Replace the models except for the top 2
-        models = top_models + new_models[:15] + new_models[15:]
-        # completely replace one model
-        models[-1] = CNNPolicy((3, 72, 80), envs.action_space.n)
+        
+        # Replace the models except for the top 3
+        models = top_models + new_models[:8] + new_models[8:17] + new_models[17:26] + random.sample(models, 3)
+        # completely replace one 
+        models[-1] = CNNPolicy((3, 36, 40), envs.action_space.n)
 
          # Checkpointing every 10 episodes
         if (episode + 1) % 20 == 0:
