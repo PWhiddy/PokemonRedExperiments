@@ -10,14 +10,14 @@ MAP_N_ADDRESS = 0xD35E
 class StreamWrapper(gym.Wrapper):
     def __init__(self, env, stream_metadata={}):
         super().__init__(env)
-        self.ws_address = "wss://poke-ws-test-ulsjzjzwpa-ue.a.run.app/broadcast"
+        self.ws_address = "wss://transdimensional.xyz/broadcast"
         self.stream_metadata = stream_metadata
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.websocket = self.loop.run_until_complete(
                 self.establish_wc_connection()
         )
-        self.upload_interval = 200
+        self.upload_interval = 250
         self.steam_step_counter = 0
         self.coord_list = []
         if hasattr(env, "pyboy"):
