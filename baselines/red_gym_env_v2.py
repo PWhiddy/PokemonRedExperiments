@@ -6,7 +6,7 @@ import numpy as np
 from skimage.transform import downscale_local_mean
 import matplotlib.pyplot as plt
 from pyboy import PyBoy
-from pyboy.logger import log_level
+#from pyboy.logger import log_level
 import mediapy as media
 from einops import repeat
 
@@ -105,7 +105,7 @@ class RedGymEnv(Env):
 
         head = "headless" if config["headless"] else "SDL2"
 
-        log_level("ERROR")
+        #log_level("ERROR")
         self.pyboy = PyBoy(
             config["gb_path"],
             debugging=False,
@@ -118,7 +118,7 @@ class RedGymEnv(Env):
         if not config["headless"]:
             self.pyboy.set_emulation_speed(6)
 
-    def reset(self, seed=None):
+    def reset(self, seed=None, options={}):
         self.seed = seed
         # restart game, skipping credits
         with open(self.init_state, "rb") as f:
@@ -355,7 +355,8 @@ class RedGymEnv(Env):
     def update_explore_map(self):
         c = self.get_global_coords()
         if c[0] >= self.explore_map.shape[0] or c[1] >= self.explore_map.shape[1]:
-            print(f"coord out of bounds! global: {c} game: {self.get_game_coords()}")
+            #print(f"coord out of bounds! global: {c} game: {self.get_game_coords()}")
+            pass
         else:
             self.explore_map[c[0], c[1]] = 255
 
@@ -521,13 +522,13 @@ class RedGymEnv(Env):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         state_scores = {
-            "event": self.reward_scale * self.update_max_event_rew() * 3,
+            "event": self.reward_scale * self.update_max_event_rew() * 4,
             "level": self.reward_scale * self.get_levels_reward(),
-            "heal": self.reward_scale * self.total_healing_rew * 4,
+            "heal": self.reward_scale * self.total_healing_rew * 5,
             "op_lvl": self.reward_scale * self.update_max_op_level() * 0.2,
             "dead": self.reward_scale * self.died_count * -0.1,
             "badge": self.reward_scale * self.get_badges() * 5,
-            "explore": self.reward_scale * self.explore_weight * len(self.seen_coords) * 0.005,
+            "explore": self.reward_scale * self.explore_weight * len(self.seen_coords) * 0.1,
         }
 
         return state_scores

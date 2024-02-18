@@ -18,7 +18,7 @@ class StreamWrapper(gym.Wrapper):
         self.loop.run_until_complete(
             self.establish_wc_connection()
         )
-        self.upload_interval = 250
+        self.upload_interval = 300
         self.steam_step_counter = 0
         self.env = env
         self.coord_list = []
