@@ -1,7 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 from stable_baselines3.common.callbacks import CheckpointCallback
-from baselines_utils import load_or_create_model, get_formatted_timestamp
+from baselines_utils import load_or_create_model
 
 if __name__ == '__main__':
 

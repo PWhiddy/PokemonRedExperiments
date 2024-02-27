@@ -191,7 +191,7 @@ class RedGymEnv(Env):
         # DONE
 
         step_limit_reached = self.check_if_done()
-        self.save_and_print_info(step_limit_reached, obs_memory, reward_delta)
+        self.save_and_print_info(step_limit_reached, obs_memory)
         self.step_count += 1
 
         return obs_memory, reward_delta * 0.1, False, step_limit_reached, {}
