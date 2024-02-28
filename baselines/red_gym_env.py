@@ -190,11 +190,11 @@ class RedGymEnv(Env):
 
         # DONE
 
-        step_limit_reached = self.check_if_done()
-        self.save_and_print_info(step_limit_reached, obs_memory)
+        done = self.check_if_done()
+        self.save_and_print_info(done, obs_memory)
         self.step_count += 1
 
-        return obs_memory, reward_delta * 0.1, False, step_limit_reached, {}
+        return obs_memory, reward_delta * 0.1, False, done, {}
 
     def run_action_on_emulator(self, action):
         # press button then release after some steps
@@ -246,8 +246,8 @@ class RedGymEnv(Env):
             expl[0]: expl[1],
             'deaths': self.reward_service.died_count,
             'badge': self.reader.get_badges(),
-            'event': self.reward_service.max_event_rew,
-            'healr': self.reward_service.total_healing_rew
+            'event': self.reward_service.max_event,
+            'healr': self.reward_service.total_healing
         })
 
     def create_exploration_memory(self):

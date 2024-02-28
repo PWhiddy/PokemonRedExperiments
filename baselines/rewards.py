@@ -12,18 +12,18 @@ class Reward:
         self.reader = reader
 
         # Pokedex
-        self.seen_pokemons_rew = 0
+        self.seen_pokemons = 0
 
         # Level
-        self.max_level_rew = 0
+        self.max_level = 0
         self.levels_satisfied = False
         self.max_opponent_level = 0
 
         # Event
-        self.max_event_rew = 0
+        self.max_event = 0
 
         # Health
-        self.total_healing_rew = 0
+        self.total_healing = 0
         self.last_party_size = 0
         self.last_health = 1
         self.died_count = 0
@@ -39,6 +39,7 @@ class Reward:
         self.init_knn()
         self.seen_coords = {}
         self.init_map_mem()
+        self.explore_reward = 0
 
         self.last_game_state_rewards = self.get_game_state_rewards()
         self.total_reward = 0
@@ -52,15 +53,16 @@ class Reward:
     def init_map_mem(self):
         self.seen_coords = {}
 
-    def get_exploration_reward(self):
+    def update_exploration_reward(self):
         pre_rew = self.explore_weight * 0.005
         post_rew = self.explore_weight * 0.01
         cur_size = self.knn_index.get_current_count() if self.use_screen_explore else len(self.seen_coords)
-        base = (self.base_explore if self.levels_satisfied else cur_size) * pre_rew
-        post = (cur_size if self.levels_satisfied else 0) * post_rew
-        return base + post
+        if not self.levels_satisfied:
+            self.explore_reward = cur_size * pre_rew
+        else:
+            self.explore_reward = (self.base_explore * pre_rew) + (cur_size * post_rew)
 
-    def get_all_events_reward(self):
+    def get_all_events_flags(self):
         # adds up all event flags, exclude museum ticket
         event_flags_start = EVENT_FLAGS_START_ADDRESS
         event_flags_end = EVENT_FLAGS_END_ADDRESS
@@ -82,17 +84,17 @@ class Reward:
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         return {
-            'event': self.reward_scale * self.max_event_rew,
-            'level': self.reward_scale * self.max_level_rew,
-            'heal': self.reward_scale * self.total_healing_rew,
-            'op_lvl': self.reward_scale * self.max_opponent_level,
-            'dead': self.reward_scale * -0.1 * self.died_count,
+            'event': self.reward_scale * self.max_event * 1,
+            'level': self.reward_scale * self.max_level * 1,
+            'heal': self.reward_scale * self.total_healing * 4,
+            'op_lvl': self.reward_scale * self.max_opponent_level * 1,
+            'dead': self.reward_scale * self.died_count * -0.1,
             'badge': self.reward_scale * self.reader.get_badges() * 5,
-            'explore': self.reward_scale * self.get_exploration_reward(),
+            'explore': self.reward_scale * self.explore_reward,
             # 'party_xp': self.reward_scale*0.1*sum(poke_xps),
             # 'op_poke': self.reward_scale*self.max_opponent_poke * 800,
             # 'money': self.reward_scale* money * 3,
-            'seen_poke': self.reward_scale * self.seen_pokemons_rew
+            'seen_poke': self.reward_scale * self.seen_pokemons
         }
 
     def group_rewards_lvl_hp_explore(self, rewards):
@@ -105,12 +107,12 @@ class Reward:
             self.update_frame_knn_index(obs_flat)
         else:
             self.update_seen_coords(step_count)
-
-        self.update_max_event_rew()
-        self.update_heal_reward()
+        self.update_exploration_reward()
+        self.update_max_event()
+        self.update_total_heal_and_death()
         self.update_max_op_level()
         self.update_seen_pokemons()
-        self.update_max_level_reward()
+        self.update_max_level()
 
         return self.update_state_reward()
 
@@ -128,7 +130,7 @@ class Reward:
         # used by memory
         old_prog = self.group_rewards_lvl_hp_explore(self.last_game_state_rewards)
         new_prog = self.group_rewards_lvl_hp_explore(self.get_game_state_rewards())
-        return reward_delta, (new_prog[0] - old_prog[0],new_prog[1] - old_prog[1], new_prog[2] - old_prog[2])
+        return reward_delta, (new_prog[0] - old_prog[0], new_prog[1] - old_prog[1], new_prog[2] - old_prog[2])
 
     def update_max_op_level(self):
         opponent_level = self.reader.get_opponent_level()
@@ -137,9 +139,9 @@ class Reward:
 
     def update_seen_pokemons(self):
         initial_seen_pokemon = 3
-        self.seen_pokemons_rew = sum(self.reader.read_seen_pokemons()) - initial_seen_pokemon
+        self.seen_pokemons = sum(self.reader.read_seen_pokemons()) - initial_seen_pokemon
 
-    def update_max_level_reward(self):
+    def update_max_level(self):
         explore_thresh = 22
         scale_factor = 4
         level_sum = self.reader.get_levels_sum()
@@ -148,8 +150,8 @@ class Reward:
         else:
             scaled = (level_sum-explore_thresh) / scale_factor + explore_thresh
         # always keeping the max, lvl can't decrease
-        self.max_level_rew = max(self.max_level_rew, scaled)
-        return self.max_level_rew
+        self.max_level = max(self.max_level, scaled)
+        return self.max_level
 
     def update_frame_knn_index(self, frame_vec):
 
@@ -184,7 +186,7 @@ class Reward:
 
         self.seen_coords[coord_string] = step_count
 
-    def update_heal_reward(self):
+    def update_total_heal_and_death(self):
         cur_health = self.reader.read_hp_fraction()
         # if health increased and party size did not change
         if (cur_health > self.last_health and
@@ -194,23 +196,23 @@ class Reward:
                 if heal_amount > 0.5:
                     print(f'healed: {heal_amount}')
                     self.save_screenshot('healing')
-                self.total_healing_rew += heal_amount * 4
+                self.total_healing += heal_amount
             else:
                 self.died_count += 1
         self.last_party_size = self.reader.read_party_size_address()
         self.last_health = self.reader.read_hp_fraction()
 
-    def update_max_event_rew(self):
-        cur_rew = self.get_all_events_reward()
-        self.max_event_rew = max(cur_rew, self.max_event_rew)
+    def update_max_event(self):
+        cur_rew = self.get_all_events_flags()
+        self.max_event = max(cur_rew, self.max_event)
 
     def reset(self):
-        self.max_event_rew = 0
-        self.max_level_rew = 0
-        self.total_healing_rew = 0
+        self.max_event = 0
+        self.max_level = 0
+        self.total_healing = 0
         self.max_opponent_level = 0
         self.died_count = 0
-        self.seen_pokemons_rew = 0
+        self.seen_pokemons = 0
         if self.use_screen_explore:
             self.init_knn()
         else:
