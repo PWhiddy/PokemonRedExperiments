@@ -77,7 +77,7 @@ class Reward:
             'op_lvl': self.reward_scale * self.max_opponent_level * 1,
             'dead': self.reward_scale * self.died_count * -0.1,
             'badge': self.reward_scale * self.reader.get_badges() * 5,
-            'explore': self.reward_scale * self.explore_reward,git
+            'explore': self.reward_scale * self.explore_reward
             # 'party_xp': self.reward_scale*0.1*sum(poke_xps),
             # 'op_poke': self.reward_scale*self.max_opponent_poke * 800,
             # 'money': self.reward_scale* money * 3,
