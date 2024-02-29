@@ -64,38 +64,29 @@ class Reward:
 
     def get_all_events_flags(self):
         # adds up all event flags, exclude museum ticket
-        event_flags_start = EVENT_FLAGS_START_ADDRESS
-        event_flags_end = EVENT_FLAGS_END_ADDRESS
-        museum_ticket = (MUSEUM_TICKET_ADDRESS, 0)
         base_event_flags = 13
-        return max(
-            sum(
-                [
-                    self.reader.bit_count(self.reader.read_m(i))
-                    for i in range(event_flags_start, event_flags_end)
-                ]
-            )
-            - base_event_flags
-            - int(self.reader.read_bit(museum_ticket[0], museum_ticket[1])),
-            0,
-            )
+        return max(0, sum(self.reader.read_events()) - base_event_flags - int(self.reader.read_museum_tickets()))
 
     def get_game_state_rewards(self):
         # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
         # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
         return {
             'event': self.reward_scale * self.max_event * 1,
-            'level': self.reward_scale * self.max_level * 1,
+            'level': self.reward_scale * self.compute_level_reward() * 1,
             'heal': self.reward_scale * self.total_healing * 4,
             'op_lvl': self.reward_scale * self.max_opponent_level * 1,
             'dead': self.reward_scale * self.died_count * -0.1,
             'badge': self.reward_scale * self.reader.get_badges() * 5,
-            'explore': self.reward_scale * self.explore_reward,
+            'explore': self.reward_scale * self.explore_reward,git
             # 'party_xp': self.reward_scale*0.1*sum(poke_xps),
             # 'op_poke': self.reward_scale*self.max_opponent_poke * 800,
             # 'money': self.reward_scale* money * 3,
-            'seen_poke': self.reward_scale * self.seen_pokemons
+            # 'seen_poke': self.reward_scale * self.seen_pokemons
         }
+
+    # Levels count only quarter after 22 threshold
+    def compute_level_reward(self):
+        return int(min(22, self.max_level) + (max(0, (self.max_level - 22)) / 4))
 
     def group_rewards_lvl_hp_explore(self, rewards):
         return (rewards['level'] * 100 / self.reward_scale,
@@ -135,23 +126,14 @@ class Reward:
     def update_max_op_level(self):
         opponent_level = self.reader.get_opponent_level()
         self.max_opponent_level = max(self.max_opponent_level, opponent_level)
-        return self.max_opponent_level * 0.2
 
     def update_seen_pokemons(self):
         initial_seen_pokemon = 3
         self.seen_pokemons = sum(self.reader.read_seen_pokemons()) - initial_seen_pokemon
 
     def update_max_level(self):
-        explore_thresh = 22
-        scale_factor = 4
-        level_sum = self.reader.get_levels_sum()
-        if level_sum < explore_thresh:
-            scaled = level_sum
-        else:
-            scaled = (level_sum-explore_thresh) / scale_factor + explore_thresh
-        # always keeping the max, lvl can't decrease
-        self.max_level = max(self.max_level, scaled)
-        return self.max_level
+        # lvl can't decrease
+        self.max_level = max(self.max_level, self.reader.get_levels_sum())
 
     def update_frame_knn_index(self, frame_vec):
 

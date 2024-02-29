@@ -62,6 +62,16 @@ class ReaderPyBoy:
     def read_map_n(self):
         return self.read_m(MAP_N_ADDRESS)
 
+    def read_events(self):
+        return [
+            self.bit_count(self.read_m(i))
+            for i in range(EVENT_FLAGS_START_ADDRESS, EVENT_FLAGS_END_ADDRESS)
+        ]
+
+    def read_museum_tickets(self):
+        museum_ticket = (MUSEUM_TICKET_ADDRESS, 0)
+        return self.read_bit(museum_ticket[0], museum_ticket[1])
+
     def read_levels(self):
         return [self.read_m(a) for a in LEVELS_ADDRESSES]
 
