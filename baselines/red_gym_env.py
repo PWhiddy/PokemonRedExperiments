@@ -2,7 +2,10 @@ import sys
 
 import numpy as np
 from pyboy import PyBoy
-
+import uuid
+import json
+import pandas as pd
+from pathlib import Path
 from renderer import Renderer
 from rewards import Reward
 from reader_pyboy import ReaderPyBoy
@@ -16,7 +19,10 @@ class RedGymEnv(Env):
     def __init__(self, config=None):
 
         self.debug = config['debug']
-
+        self.instance_id = str(uuid.uuid4())[:8] if 'instance_id' not in config else config['instance_id']
+        self.s_path = config['session_path']
+        self.save_final_state = config['save_final_state']
+        self.save_video = config['save_video']
         self.headless = config['headless']
         self.init_state = config['init_state']
         self.act_freq = config['action_freq']
@@ -25,12 +31,13 @@ class RedGymEnv(Env):
         self.fast_video = config['fast_video']
         self.video_interval = 256 * self.act_freq
         self.downsample_factor = 2
+        self.print_rewards = config['print_rewards']
 
         self.use_screen_explore = True if 'use_screen_explore' not in config else config['use_screen_explore']
 
         self.extra_buttons = False if 'extra_buttons' not in config else config['extra_buttons']
         self.reset_count = 0
-
+        self.all_runs = []
         # Set this in SOME subclasses
         self.metadata = {"render.modes": []}
 
@@ -63,7 +70,6 @@ class RedGymEnv(Env):
 
         head = 'headless' if config['headless'] else 'SDL2'
 
-        # log_level("ERROR")
         self.pyboy = PyBoy(
             config['gb_path'],
             debugging=False,
@@ -76,14 +82,14 @@ class RedGymEnv(Env):
             self.pyboy.set_emulation_speed(6)
 
         self.reader = ReaderPyBoy(self.pyboy)
-        self.renderer = Renderer(config, self.pyboy)
+
+        # Rewards
+        self.reward_service = Reward(config, self.reader)
+        self.renderer = Renderer(config, self.pyboy, self.reward_service, self.instance_id)
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
         self.observation_space = spaces.Box(low=0, high=255, shape=self.renderer.output_full, dtype=np.uint8)
-
-        # Rewards
-        self.reward_service = Reward(config, self.reader, self.renderer.save_screenshot)
 
         self.reset()
 
@@ -99,6 +105,8 @@ class RedGymEnv(Env):
         self.reward_service.reset()
 
         self.renderer.reset()
+        if self.save_video:
+            self.renderer.save_video(self.reset_count)
 
         self.agent_stats = []
 
@@ -121,6 +129,10 @@ class RedGymEnv(Env):
         # REWARD
 
         reward_delta, new_prog = self.reward_service.update_rewards(obs_flat, self.step_count)
+        if self.print_rewards:
+            self.reward_service.print_rewards(self.step_count)
+        if reward_delta < 0 and self.reader.read_hp_fraction() > 0:
+            self.renderer.save_screenshot('neg_reward')
 
         # shift over short term reward memory
         self.renderer.recent_memory = np.roll(self.renderer.recent_memory, 3)
@@ -131,9 +143,26 @@ class RedGymEnv(Env):
         # DONE
 
         done = self.check_if_done()
-        self.renderer.save_and_print_info(done, obs_memory, self.step_count, self.reward_service, self.reset_count, self.agent_stats)
-        self.step_count += 1
+        if self.step_count % 50 == 0:
+            self.renderer.save_and_print_info()
 
+        if done:
+            self.all_runs.append(self.reward_service.get_game_state_rewards())
+            with open(self.s_path / Path(f'all_runs_{self.instance_id}.json'), 'w') as f:
+                json.dump(self.all_runs, f)
+            pd.DataFrame(self.agent_stats).to_csv(
+                self.s_path / Path(f'agent_stats_{self.instance_id}.csv.gz'), compression='gzip', mode='a')
+
+            if self.print_rewards:
+                print('', flush=True)
+                if self.save_final_state:
+                    self.renderer.save_final_state(obs_memory, self.reset_count)
+
+            if self.save_video and done:
+                self.renderer.full_frame_writer.close()
+                self.renderer.model_frame_writer.close()
+
+        self.step_count += 1
         return obs_memory, reward_delta * 0.1, False, done, {}
 
     def run_action_on_emulator(self, action):
@@ -153,13 +182,13 @@ class RedGymEnv(Env):
                     self.pyboy.send_input(self.release_button[action - 4])
                 if self.valid_actions[action] == WindowEvent.PRESS_BUTTON_START:
                     self.pyboy.send_input(WindowEvent.RELEASE_BUTTON_START)
-            if self.renderer.save_video and not self.fast_video:
-                self.renderer.add_video_frame(self.reward_service)
+            if self.save_video and not self.fast_video:
+                self.renderer.add_video_frame()
             if i == self.act_freq - 1:
                 self.pyboy._rendering(True)
             self.pyboy.tick()
-        if self.renderer.save_video and self.fast_video:
-            self.renderer.add_video_frame(self.reward_service)
+        if self.save_video and self.fast_video:
+            self.renderer.add_video_frame()
 
     def append_agent_stats(self, action):
         x_pos = self.reader.read_x_pos()

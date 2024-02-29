@@ -1,12 +1,10 @@
-from memory_addresses import EVENT_FLAGS_START_ADDRESS, EVENT_FLAGS_END_ADDRESS, MUSEUM_TICKET_ADDRESS
 import hnswlib
 import numpy as np
 
 
 class Reward:
 
-    def __init__(self, config, reader, save_screenshot):
-        self.save_screenshot = save_screenshot
+    def __init__(self, config, reader):
         self.reward_scale = 1 if 'reward_scale' not in config else config['reward_scale']
         self.reward_range = (0, 15000)
         self.reader = reader
@@ -113,8 +111,6 @@ class Reward:
         new_total = sum([val for _, val in self.get_game_state_rewards().items()])
         self.total_reward = new_total
         reward_delta = new_total - last_total
-        if reward_delta < 0 and self.reader.read_hp_fraction() > 0:
-            self.save_screenshot('neg_reward')
 
         self.last_game_state_rewards = self.get_game_state_rewards()
 
@@ -177,7 +173,6 @@ class Reward:
                 heal_amount = cur_health - self.last_health
                 if heal_amount > 0.5:
                     print(f'healed: {heal_amount}')
-                    self.save_screenshot('healing')
                 self.total_healing += heal_amount
             else:
                 self.died_count += 1
@@ -201,3 +196,11 @@ class Reward:
             self.init_map_mem()
         self.last_game_state_rewards = self.get_game_state_rewards()
         self.total_reward = 0
+
+    def print_rewards(self, step_count):
+        prog_string = f'step: {step_count:6d}'
+        rewards_state = self.get_game_state_rewards()
+        for key, val in rewards_state.items():
+            prog_string += f' {key}: {val:5.2f}'
+        prog_string += f' sum: {self.total_reward:5.2f}'
+        print(f'\r{prog_string}', end='', flush=True)
