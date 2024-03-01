@@ -10,10 +10,10 @@ from reader_pyboy import ReaderPyBoy
 
 class Renderer:
 
-    def __init__(self, config, pyboy, reward_service, instance_id):
+    def __init__(self, s_path, pyboy, reward_service, instance_id):
         self.reward_service = reward_service
         self.instance_id = instance_id
-        self.s_path = config['session_path']
+        self.s_path = s_path
         self.s_path.mkdir(exist_ok=True)
         self.output_shape = (36, 40, 3)
         self.frame_stacks = 3
@@ -56,12 +56,12 @@ class Renderer:
             self.render(reduce_res=False))
 
 
-    def save_screenshot(self, name, reward_service, reset_count):
+    def save_screenshot(self, name, total_reward, reset_count):
         ss_dir = self.s_path / Path('screenshots')
         ss_dir.mkdir(exist_ok=True)
         plt.imsave(
             ss_dir / Path(
-                f'frame{self.instance_id}_r{reward_service.total_reward:.4f}_{reset_count}_{name}.jpeg'),
+                f'frame{self.instance_id}_r{total_reward:.4f}_{reset_count}_{name}.jpeg'),
             self.render(reduce_res=False)
         )
 
@@ -108,26 +108,20 @@ class Renderer:
             memory[col, row] = last_pixel * (255 // col_steps)
             return memory
 
-        full_memory = np.stack((
-            make_reward_channel(level),
-            make_reward_channel(hp),
-            make_reward_channel(explore)
-        ), axis=-1)
+        full_memory = np.stack(
+            (make_reward_channel(level), make_reward_channel(hp), make_reward_channel(explore)),
+            axis=-1)
 
         if self.reader.get_badges() > 0:
             full_memory[:, -1, :] = 255
 
         return full_memory
 
-    def save_final_state(self, obs_memory, reset_count):
+    def save_final_state(self, obs_memory, reset_count, total_reward):
         fs_path = self.s_path / Path('final_states')
         fs_path.mkdir(exist_ok=True)
-        plt.imsave(
-            fs_path / Path(f'frame_r{self.reward_service.total_reward:.4f}_{reset_count}_small.jpeg'),
-            obs_memory)
-        plt.imsave(
-            fs_path / Path(f'frame_r{self.reward_service.total_reward:.4f}_{reset_count}_full.jpeg'),
-            self.render(reduce_res=False))
+        plt.imsave(fs_path / Path(f'frame_r{total_reward:.4f}_{reset_count}_small.jpeg'), obs_memory)
+        plt.imsave(fs_path / Path(f'frame_r{total_reward:.4f}_{reset_count}_full.jpeg'), self.render(reduce_res=False))
 
     def reset(self):
         self.recent_memory = np.zeros((self.output_shape[1] * self.memory_height, 3), dtype=np.uint8)

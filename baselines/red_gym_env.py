@@ -85,7 +85,7 @@ class RedGymEnv(Env):
 
         # Rewards
         self.reward_service = Reward(config, self.reader)
-        self.renderer = Renderer(config, self.pyboy, self.reward_service, self.instance_id)
+        self.renderer = Renderer(self.s_path, self.pyboy, self.reward_service, self.instance_id)
 
         # Set these in ALL subclasses
         self.action_space = spaces.Discrete(len(self.valid_actions))
@@ -94,7 +94,7 @@ class RedGymEnv(Env):
         self.reset()
 
     def render(self):
-        self.renderer.render(self.reward_service)
+        return self.renderer.render()
 
     def reset(self, seed=None, options=None):
         self.seed = seed
@@ -113,7 +113,7 @@ class RedGymEnv(Env):
         self.step_count = 0
 
         self.reset_count += 1
-        return self.renderer.render(self.reward_service), {}
+        return self.render(), {}
 
     def step(self, action):
 
@@ -123,7 +123,7 @@ class RedGymEnv(Env):
 
         # OBSERVATION
 
-        obs_memory = self.renderer.render(self.reward_service)
+        obs_memory = self.render()
         obs_flat = self.renderer.get_obs_flat(obs_memory)
 
         # REWARD
@@ -132,7 +132,7 @@ class RedGymEnv(Env):
         if self.print_rewards:
             self.reward_service.print_rewards(self.step_count)
         if reward_delta < 0 and self.reader.read_hp_fraction() > 0:
-            self.renderer.save_screenshot('neg_reward')
+            self.renderer.save_screenshot('neg_reward', self.reward_service.total_reward, self.reset_count)
 
         # shift over short term reward memory
         self.renderer.recent_memory = np.roll(self.renderer.recent_memory, 3)
@@ -156,7 +156,7 @@ class RedGymEnv(Env):
             if self.print_rewards:
                 print('', flush=True)
                 if self.save_final_state:
-                    self.renderer.save_final_state(obs_memory, self.reset_count)
+                    self.renderer.save_final_state(obs_memory, self.reset_count, self.reward_service.total_reward)
 
             if self.save_video and done:
                 self.renderer.full_frame_writer.close()
