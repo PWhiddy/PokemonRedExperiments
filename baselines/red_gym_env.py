@@ -30,9 +30,7 @@ class RedGymEnv(Env):
         self.early_stopping = config['early_stop']
         self.fast_video = config['fast_video']
         self.video_interval = 256 * self.act_freq
-        self.downsample_factor = 2
         self.print_rewards = config['print_rewards']
-
         self.use_screen_explore = True if 'use_screen_explore' not in config else config['use_screen_explore']
 
         self.extra_buttons = False if 'extra_buttons' not in config else config['extra_buttons']
@@ -129,7 +127,7 @@ class RedGymEnv(Env):
         # REWARD
 
         reward_delta, new_prog = self.reward_service.update_rewards(obs_flat, self.step_count)
-        if self.print_rewards:
+        if self.print_rewards and self.step_count % 100 == 0:
             self.reward_service.print_rewards(self.step_count)
         if reward_delta < 0 and self.reader.read_hp_fraction() > 0:
             self.renderer.save_screenshot('neg_reward', self.reward_service.total_reward, self.reset_count)
@@ -203,9 +201,11 @@ class RedGymEnv(Env):
             'step': self.step_count, 'x': x_pos, 'y': y_pos, 'map': map_n,
             'map_location': self.reader.get_map_location(),
             'last_action': action,
-            'pcount': self.reader.read_party_size_address(),
+            'final_total_reward': self.reward_service.total_reward,
+            'party_size': self.reader.read_party_size_address(),
             'levels': levels,
             'levels_sum': sum(levels),
+            'seen_pokemons': self.reward_service.seen_pokemons,
             'ptypes': self.reader.read_party(),
             'hp': self.reader.read_hp_fraction(),
             expl[0]: expl[1],

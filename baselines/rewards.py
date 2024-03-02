@@ -37,10 +37,43 @@ class Reward:
         self.init_knn()
         self.seen_coords = {}
         self.init_map_mem()
-        self.explore_reward = 0
+        self.cur_size = 0
 
         self.last_game_state_rewards = self.get_game_state_rewards()
         self.total_reward = 0
+
+    def reset(self):
+        self.max_event = 0
+        self.max_level = 0
+        self.levels_satisfied = False
+        self.total_healing = 0
+        self.last_party_size = 0
+        self.last_health = 1
+        self.max_opponent_level = 0
+        self.died_count = 0
+        self.seen_pokemons = 0
+        self.base_explore = 0
+        self.seen_coords = {}
+        if self.use_screen_explore:
+            self.init_knn()
+        else:
+            self.init_map_mem()
+        self.total_reward = 0
+        self.last_game_state_rewards = self.get_game_state_rewards()
+
+    def get_game_state_rewards(self):
+        # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
+        # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
+        return {
+            'event': self.reward_scale * self.max_event * 1,
+            'level': self.reward_scale * self.compute_level_reward(),
+            'heal': self.reward_scale * self.total_healing * 2,
+            'op_lvl': self.reward_scale * self.max_opponent_level * 1,
+            'dead': self.reward_scale * self.died_count * -0.1,
+            'badge': self.reward_scale * self.reader.get_badges() * 5,
+            'seen_poke': self.reward_scale * self.seen_pokemons * 1,
+            'explore': self.reward_scale * self.compute_explore_reward()
+        }
 
     def init_knn(self):
         # Declaring index
@@ -52,39 +85,24 @@ class Reward:
         self.seen_coords = {}
 
     def update_exploration_reward(self):
-        pre_rew = self.explore_weight * 0.005
-        post_rew = self.explore_weight * 0.01
-        cur_size = self.knn_index.get_current_count() if self.use_screen_explore else len(self.seen_coords)
-        if not self.levels_satisfied:
-            self.explore_reward = cur_size * pre_rew
-        else:
-            self.explore_reward = (self.base_explore * pre_rew) + (cur_size * post_rew)
+        self.cur_size = self.knn_index.get_current_count() if self.use_screen_explore else len(self.seen_coords)
 
     def get_all_events_flags(self):
         # adds up all event flags, exclude museum ticket
         base_event_flags = 13
         return max(0, sum(self.reader.read_events()) - base_event_flags - int(self.reader.read_museum_tickets()))
 
-    def get_game_state_rewards(self):
-        # addresses from https://datacrystal.romhacking.net/wiki/Pok%C3%A9mon_Red/Blue:RAM_map
-        # https://github.com/pret/pokered/blob/91dc3c9f9c8fd529bb6e8307b58b96efa0bec67e/constants/event_constants.asm
-        return {
-            'event': self.reward_scale * self.max_event * 1,
-            'level': self.reward_scale * self.compute_level_reward() * 1,
-            'heal': self.reward_scale * self.total_healing * 4,
-            'op_lvl': self.reward_scale * self.max_opponent_level * 1,
-            'dead': self.reward_scale * self.died_count * -0.1,
-            'badge': self.reward_scale * self.reader.get_badges() * 5,
-            'explore': self.reward_scale * self.explore_reward
-            # 'party_xp': self.reward_scale*0.1*sum(poke_xps),
-            # 'op_poke': self.reward_scale*self.max_opponent_poke * 800,
-            # 'money': self.reward_scale* money * 3,
-            # 'seen_poke': self.reward_scale * self.seen_pokemons
-        }
-
-    # Levels count only quarter after 22 threshold
     def compute_level_reward(self):
-        return int(min(22, self.max_level) + (max(0, (self.max_level - 22)) / 4))
+        # Levels count only quarter after 22 threshold
+        return int(min(22, self.max_level) + (max(0, (self.max_level - 22)) / 4)) * 1
+
+    def compute_explore_reward(self):
+        pre_rew = 0.005
+        post_rew = 0.01
+        if not self.levels_satisfied:
+            return (self.cur_size * 0.005) * self.explore_weight
+        else:
+            return ((self.base_explore * pre_rew) + (self.cur_size * post_rew)) * self.explore_weight
 
     def group_rewards_lvl_hp_explore(self, rewards):
         return (rewards['level'] * 100 / self.reward_scale,
@@ -183,24 +201,11 @@ class Reward:
         cur_rew = self.get_all_events_flags()
         self.max_event = max(cur_rew, self.max_event)
 
-    def reset(self):
-        self.max_event = 0
-        self.max_level = 0
-        self.total_healing = 0
-        self.max_opponent_level = 0
-        self.died_count = 0
-        self.seen_pokemons = 0
-        if self.use_screen_explore:
-            self.init_knn()
-        else:
-            self.init_map_mem()
-        self.last_game_state_rewards = self.get_game_state_rewards()
-        self.total_reward = 0
-
     def print_rewards(self, step_count):
         prog_string = f'step: {step_count:6d}'
         rewards_state = self.get_game_state_rewards()
         for key, val in rewards_state.items():
             prog_string += f' {key}: {val:5.2f}'
         prog_string += f' sum: {self.total_reward:5.2f}'
+        prog_string += f' {self.reader.get_map_location()}'
         print(f'\r{prog_string}', end='', flush=True)
