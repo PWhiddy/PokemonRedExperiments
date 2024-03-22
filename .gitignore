@@ -12,3 +12,4 @@ session_*
 PokemonRed.gb.state
 venv*
 .python-version
+.pixi
