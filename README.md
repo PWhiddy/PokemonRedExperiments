@@ -20,9 +20,13 @@ See how in [Training Broadcast](#training-broadcast) section
 [![Join the Discord server!](https://invidget.switchblade.xyz/RvadteZk4G)](http://discord.gg/RvadteZk4G)
   
 ## Running the Pretrained Model Interactively 🎮  
-🐍 Python 3.10 is recommended. Other versions may work but have not been tested.   
+🐍 Python 3.10+ is recommended. Other versions may work but have not been tested.   
 You also need to install ffmpeg and have it available in the command line.
 
+### Windows Setup
+Refer to this [Windows Setup Guide](windows-setup-guide.md)
+
+### Linux / MacOS
 1. Copy your legally obtained Pokemon Red ROM into the base directory. You can find this using google, it should be 1MB. Rename it to `PokemonRed.gb` if it is not already. The sha1 sum should be `ea9bcae617fdf159b045185467ae58b2e4a48b9a`, which you can verify by running `shasum PokemonRed.gb`. 
 2. Move into the `baselines/` directory:  
  ```cd baselines```  
