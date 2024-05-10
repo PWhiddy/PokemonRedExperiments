@@ -62,13 +62,13 @@ Made by discord user @Aisiktir
 5.) Microsoft C++ Build Tools, https://visualstudio.microsoft.com/visual-cpp-build-tools/ 
 
 6.) Install it
-https://i.postimg.cc/Yq15fqds/image.png
+![https://i.postimg.cc/Yq15fqds/image.png](https://i.postimg.cc/Yq15fqds/image.png)
  
 Windows 11
-https://i.postimg.cc/VkKHDSnD/image.png
+![https://i.postimg.cc/VkKHDSnD/image.png](https://i.postimg.cc/VkKHDSnD/image.png)
  
 Windows 10
-https://i.postimg.cc/43KwPWJx/image.png
+![https://i.postimg.cc/43KwPWJx/image.png](https://i.postimg.cc/43KwPWJx/image.png)
 
 7.) Open cmd 
  
