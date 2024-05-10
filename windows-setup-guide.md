@@ -11,28 +11,51 @@ Made by discord user @Aisiktir
 4.) Install it  
 
 4.1)
+
 ![https://i.postimg.cc/DyJ1m4YG/image.png](https://i.postimg.cc/DyJ1m4YG/image.png)
+
 4.2)
+
 ![https://i.postimg.cc/C5WBbJ6q/image.png](https://i.postimg.cc/C5WBbJ6q/image.png)
+
 4.3)
+
 ![https://i.postimg.cc/hPd7KWfb/image.png](https://i.postimg.cc/hPd7KWfb/image.png)
+
 4.4)
+
 ![https://i.postimg.cc/LsNJxmbR/image.png](https://i.postimg.cc/LsNJxmbR/image.png)
+
 4.5)
+
 ![https://i.postimg.cc/1XN4Rw55/image.png](https://i.postimg.cc/1XN4Rw55/image.png)
+
 4.6)
+
 ![https://i.postimg.cc/HjDnrnV0/image.png](https://i.postimg.cc/HjDnrnV0/image.png)
+
 4.7)
+
 ![https://i.postimg.cc/W17mPLHY/image.png](https://i.postimg.cc/W17mPLHY/image.png)
+
 4.8)
+
 ![https://i.postimg.cc/cJ9Qr7ZQ/image.png](https://i.postimg.cc/cJ9Qr7ZQ/image.png)
+
 4.9)
+
 ![https://i.postimg.cc/638CR75F/image.png](https://i.postimg.cc/638CR75F/image.png)
+
 4.10)
+
 ![https://i.postimg.cc/2jB4SBtZ/image.png](https://i.postimg.cc/2jB4SBtZ/image.png)
+
 4.11)
+
 ![https://i.postimg.cc/sD4GMP4v/image.png](https://i.postimg.cc/sD4GMP4v/image.png)
+
 4.12)
+
 ![https://i.postimg.cc/bvWs7mpF/image.png](https://i.postimg.cc/bvWs7mpF/image.png)
 
 
