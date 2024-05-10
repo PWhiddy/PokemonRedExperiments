@@ -13,7 +13,7 @@ Made by discord user @Aisiktir
 4.1)
 ![https://i.postimg.cc/DyJ1m4YG/image.png](https://i.postimg.cc/DyJ1m4YG/image.png)
 4.2)
-![https://i.postimg.cc/C5WBbJ6q/image.png]()
+![https://i.postimg.cc/C5WBbJ6q/image.png](https://i.postimg.cc/C5WBbJ6q/image.png)
 4.3)
 ![https://i.postimg.cc/hPd7KWfb/image.png](https://i.postimg.cc/hPd7KWfb/image.png)
 4.4)
