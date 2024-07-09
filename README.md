@@ -26,6 +26,9 @@ You also need to install ffmpeg and have it available in the command line.
 ### Windows Setup
 Refer to this [Windows Setup Guide](windows-setup-guide.md)
 
+### For AMD GPUs
+Follow this [guide to install pytorch with ROCm support](https://rocm.docs.amd.com/projects/radeon/en/latest/docs/install/wsl/howto_wsl.html)
+
 ### Linux / MacOS
 1. Copy your legally obtained Pokemon Red ROM into the base directory. You can find this using google, it should be 1MB. Rename it to `PokemonRed.gb` if it is not already. The sha1 sum should be `ea9bcae617fdf159b045185467ae58b2e4a48b9a`, which you can verify by running `shasum PokemonRed.gb`. 
 2. Move into the `baselines/` directory:  
