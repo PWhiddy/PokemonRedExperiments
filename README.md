@@ -64,7 +64,7 @@ Stream your training session to a shared global game map using the [Broadcast Wr
 env = StreamWrapper(
             env, 
             stream_metadata = { # All of this is part is optional
-                "user": "pw", # choose your own username
+                "user": "super-cool-user", # choose your own username
                 "env_id": id, # environment identifier
                 "color": "#0033ff", # choose your color :)
                 "extra": "", # any extra text you put here will be displayed
