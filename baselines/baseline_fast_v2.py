@@ -75,7 +75,7 @@ if __name__ == "__main__":
     #env_checker.check_env(env)
 
     # put a checkpoint here you want to start from
-    file_name = "session_8d5a9983/poke_32768000_steps" #"session_9ff8e5f0/poke_21626880_steps"
+    file_name = "" # "session_8d5a9983/poke_32768000_steps" # <- a cerulean checkpoint
 
     train_steps_batch = ep_length // 5
     
