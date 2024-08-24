@@ -56,6 +56,13 @@ This version still needs some tuning, but it can clear the first gym in a small 
 2. Run:  
 ```python run_baseline_parallel_fast.py```
 
+### V2
+
+Replaces the frame KNN with a coordinate based exploration reward, as well as some other tweaks. Beats the gym more reliably and sometimes is able to get to Cerulean!
+1. Previous steps
+2. Run:
+```python baseline_fast_v2.py```
+
 ## Tracking Training Progress 📈
 
 ### Training Broadcast
