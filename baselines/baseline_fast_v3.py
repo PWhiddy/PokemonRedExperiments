@@ -24,7 +24,7 @@ def make_env(rank, seed=0):
         env = StreamWrapper(
             PokeRedEnv('../PokemonRed.gb', '../has_pokedex_nballs.state'), 
             stream_metadata = { # All of this is part is optional
-                "user": "pw-min", # choose your own username
+                "user": "v3-test", # choose your own username
                 "env_id": rank, # environment identifier
                 "color": "#662299", # choose your color :)
                 "extra": "", # any extra text you put here will be displayed
@@ -37,7 +37,7 @@ def make_env(rank, seed=0):
 
 if __name__ == "__main__":
 
-    use_wandb_logging = True
+    use_wandb_logging = False
     ep_length = 2048 * 10
     sess_id = str(uuid.uuid4())[:8]
     sess_path = Path(f'session_{sess_id}')
