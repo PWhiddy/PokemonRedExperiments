@@ -36,8 +36,8 @@ def make_env(rank, env_conf, seed=0):
 if __name__ == "__main__":
 
     use_wandb_logging = False
-    ep_length = 2048 * 20
-    sess_id = str(uuid.uuid4())[:8]
+    ep_length = 2048 * 40
+    sess_id = "b68e9ac5" #str(uuid.uuid4())[:8]
     sess_path = Path(f'session_{sess_id}')
 
     env_config = {
@@ -77,7 +77,7 @@ if __name__ == "__main__":
     # put a checkpoint here you want to start from
     file_name = "" # "session_8d5a9983/poke_32768000_steps" # <- a cerulean checkpoint
 
-    train_steps_batch = ep_length // 5
+    train_steps_batch = ep_length // 40
     
     if exists(file_name + ".zip"):
         print("\nloading checkpoint")
@@ -88,7 +88,7 @@ if __name__ == "__main__":
         model.rollout_buffer.n_envs = num_cpu
         model.rollout_buffer.reset()
     else:
-        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=train_steps_batch, batch_size=512, n_epochs=1, gamma=0.999, ent_coef=0.01, tensorboard_log=sess_path)
+        model = PPO("MultiInputPolicy", env, verbose=1, n_steps=train_steps_batch, batch_size=512, n_epochs=1, gamma=0.997, ent_coef=0.01, tensorboard_log=sess_path)
     
     print(model.policy)
 
