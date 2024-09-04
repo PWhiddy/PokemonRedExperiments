@@ -72,7 +72,9 @@ Windows 10
 
 7.) Open cmd 
  
-7.1) Browse to the path of the git, for example "cd C:\Users\YourWindowsUsername\Downloads\PokemonRedExperiments-master\baselines"
+7.1) Move into the 'baselines' directory of the repository, depending where you've downloaded it, something like this: 
+  
+```cd "C:\Users\YourWindowsUsername\Downloads\PokemonRedExperiments\baselines"```
  
 7.2) Type "pip install -r requirements.txt"
  
