@@ -1,0 +1,29 @@
+[project]
+name = "Pokemon Red Experiements"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tasks]
+start = { cmd = "python run_pretrained_interactive.py", cwd = "baselines" }
+
+[dependencies]
+pytorch = ">=2.1.2,<2.2"
+tensorboard = ">=2.16.2,<2.17"
+hnswlib = ">=0.7.0,<0.8"
+scikit-learn = ">=1.4.1.post1,<1.4.2"
+pandas = ">=2.2.1,<2.3"
+scikit-image = ">=0.22.0,<0.23"
+tqdm = ">=4.66.2,<4.67"
+numpy = ">=1.26.4,<1.27"
+gym = ">=0.26.1,<0.27"
+einops = ">=0.7.0,<0.8"
+gymnasium = ">=0.28.1,<0.29"
+opencv = ">=4.9.0,<4.10"
+seaborn = ">=0.13.2,<0.14"
+wandb = ">=0.16.3,<0.17"
+shimmy = ">=1.3.0,<1.4"
+
+[pypi-dependencies]
+pyboy = "==1.6.9"
+stable-baselines3 = "==2.0.0"
+mediapy = {git = "https://github.com/PWhiddy/mediapy.git", rev="45101800d4f6adeffe814cad93de1db67c1bd614"}
