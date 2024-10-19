@@ -22,9 +22,9 @@ def make_env(rank, env_conf, seed=0):
         env = StreamWrapper(
             RedGymEnv(env_conf), 
             stream_metadata = { # All of this is part is optional
-                "user": "v2-pwhiddy", # choose your own username
+                "user": "v2-b", # choose your own username
                 "env_id": rank, # environment identifier
-                "color": "#992233", # choose your color :)
+                "color": "#447799", # choose your color :)
                 "extra": "", # any extra text you put here will be displayed
             }
         )
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     
     print(env_config)
     
-    num_cpu = 64#32  # Also sets the number of episodes per training iteration
+    num_cpu = 64 # Also sets the number of episodes per training iteration
     env = SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     checkpoint_callback = CheckpointCallback(save_freq=ep_length//2, save_path=sess_path,
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     #env_checker.check_env(env)
 
     # put a checkpoint here you want to start from
-    file_name = "" # "session_b68e9ac5/poke_201850880_steps" # "session_8d5a9983/poke_32768000_steps" # <- a cerulean checkpoint
+    file_name = ""
 
     train_steps_batch = ep_length // 64
     
