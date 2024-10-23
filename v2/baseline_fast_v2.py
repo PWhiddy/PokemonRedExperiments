@@ -38,7 +38,7 @@ if __name__ == "__main__":
     use_wandb_logging = False
     ep_length = 2048 * 80
     sess_id = "runs" #str(uuid.uuid4())[:8]
-    sess_path = Path(f'session_{sess_id}')
+    sess_path = Path(sess_id)
 
     env_config = {
                 'headless': True, 'save_final_state': False, 'early_stop': False,
