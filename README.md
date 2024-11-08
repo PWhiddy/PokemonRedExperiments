@@ -1,5 +1,6 @@
 # Train RL agents to play Pokemon Red
 
+### New 10-19-24! Updated & Simplified V2 Training Script - See V2 below
 ### New 1-29-24! - [Multiplayer Live Training Broadcast](https://github.com/pwhiddy/pokerl-map-viz/)  🎦 🔴 [View Here](https://pwhiddy.github.io/pokerl-map-viz/)
 Stream your training session to a shared global game map using the [Broadcast Wrapper](/baselines/stream_agent_wrapper.py)  
 
@@ -30,6 +31,9 @@ Refer to this [Windows Setup Guide](windows-setup-guide.md)
 Follow this [guide to install pytorch with ROCm support](https://rocm.docs.amd.com/projects/radeon/en/latest/docs/install/wsl/howto_wsl.html)
 
 ### Linux / MacOS
+
+V2 is now reccomended over the original version. You may follow all steps below but replace `baselines` with `v2`.
+
 1. Copy your legally obtained Pokemon Red ROM into the base directory. You can find this using google, it should be 1MB. Rename it to `PokemonRed.gb` if it is not already. The sha1 sum should be `ea9bcae617fdf159b045185467ae58b2e4a48b9a`, which you can verify by running `shasum PokemonRed.gb`. 
 2. Move into the `baselines/` directory:  
  ```cd baselines```  
@@ -48,18 +52,16 @@ Note: the Pokemon.gb file MUST be in the main directory and your current directo
 
 <img src="/assets/grid.png?raw=true" height="156">
 
-### 10-21-23: Updated Version! 
-
-This version still needs some tuning, but it can clear the first gym in a small fraction of the time and compute resources. It can work with as few as 16 cores and ~20G of RAM. This is the place for active development and updates! 
-
-1. Previous steps 1-3
-2. Run:  
-```python run_baseline_parallel_fast.py```
 
 ### V2
 
-Replaces the frame KNN with a coordinate based exploration reward, as well as some other tweaks. Beats the gym more reliably and sometimes is able to get to Cerulean!
-1. Previous steps
+- Trains faster and with less memory
+- Reaches Cerulean
+- Streams to map by default
+- Other improvements
+
+Replaces the frame KNN with a coordinate based exploration reward, as well as some other tweaks.
+1. Previous steps but in the `v2` directory instead of `baselines`
 2. Run:
 ```python baseline_fast_v2.py```
 
