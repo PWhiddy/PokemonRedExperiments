@@ -1,6 +1,5 @@
 from os.path import exists
 from pathlib import Path
-import uuid
 from red_gym_env_v2 import RedGymEnv
 from stream_agent_wrapper import StreamWrapper
 from stable_baselines3 import PPO
@@ -22,7 +21,7 @@ def make_env(rank, env_conf, seed=0):
         env = StreamWrapper(
             RedGymEnv(env_conf), 
             stream_metadata = { # All of this is part is optional
-                "user": "v2-b", # choose your own username
+                "user": "v2-default", # choose your own username
                 "env_id": rank, # environment identifier
                 "color": "#447799", # choose your color :)
                 "extra": "", # any extra text you put here will be displayed
@@ -37,7 +36,7 @@ if __name__ == "__main__":
 
     use_wandb_logging = False
     ep_length = 2048 * 80
-    sess_id = "runs" #str(uuid.uuid4())[:8]
+    sess_id = "runs"
     sess_path = Path(sess_id)
 
     env_config = {
