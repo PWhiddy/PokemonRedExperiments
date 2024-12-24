@@ -2,6 +2,8 @@ import os
 from os.path import exists
 from pathlib import Path
 import uuid
+import time
+import glob
 from red_gym_env_v2 import RedGymEnv
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common import env_checker
@@ -24,24 +26,22 @@ def make_env(rank, env_conf, seed=0):
     set_random_seed(seed)
     return _init
 
-def get_most_recent_checkpoint():
-    max_steps = -1
-    most_recent_zip = None
-    runs_folder = "runs"
-    for file_name in os.listdir(runs_folder):
-        if file_name.endswith("_steps.zip") and file_name.startswith("poke_"):
-            try:
-                steps = int(file_name.split("_")[1])
-                if steps > max_steps:
-                    max_steps = steps
-                    most_recent_zip = file_name
-            except ValueError:
-                continue 
-
-    if most_recent_zip:
-        return os.path.join(runs_folder, most_recent_zip)
-    else:
-        return None
+def get_most_recent_zip_with_age(folder_path):
+    # Get all zip files in the folder
+    zip_files = glob.glob(os.path.join(folder_path, "*.zip"))
+    
+    if not zip_files:
+        return None, None  # Return None if no zip files are found
+    
+    # Find the most recently modified zip file
+    most_recent_zip = max(zip_files, key=os.path.getmtime)
+    
+    # Calculate how old the file is in hours
+    current_time = time.time()
+    modification_time = os.path.getmtime(most_recent_zip)
+    age_in_hours = (current_time - modification_time) / 3600  # Convert seconds to hours
+    
+    return most_recent_zip, age_in_hours
 
 if __name__ == '__main__':
 
@@ -59,13 +59,13 @@ if __name__ == '__main__':
     env = make_env(0, env_config)() #SubprocVecEnv([make_env(i, env_config) for i in range(num_cpu)])
     
     #env_checker.check_env(env)
-    most_recent_checkpoint = get_most_recent_checkpoint()
+    most_recent_checkpoint, time_since = get_most_recent_zip_with_age("runs")
     if most_recent_checkpoint is not None:
         file_name = most_recent_checkpoint
+        print(f"using checkpoint: {file_name}, which is {time_since} hours old")
     
     # could optionally manually specify a checkpoint here
-    # file_name = "runs/poke_124800_steps.zip"
-    
+    #file_name = "runs/poke_41943040_steps.zip"
     print('\nloading checkpoint')
     model = PPO.load(file_name, env=env, custom_objects={'lr_schedule': 0, 'clip_range': 0})
         
