@@ -1,3 +1,4 @@
+import sys
 from os.path import exists
 from pathlib import Path
 from red_gym_env_v2 import RedGymEnv
@@ -43,7 +44,7 @@ if __name__ == "__main__":
                 'headless': True, 'save_final_state': False, 'early_stop': False,
                 'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
-                'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 1
+                'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 0.25
             }
     
     print(env_config)
@@ -63,7 +64,7 @@ if __name__ == "__main__":
         run = wandb.init(
             project="pokemon-train",
             id=sess_id,
-            name="less-event-log-text-test-logs-stack3-all-obs",
+            name="v2-a",
             config=env_config,
             sync_tensorboard=True,  
             monitor_gym=True,  
@@ -74,7 +75,7 @@ if __name__ == "__main__":
     #env_checker.check_env(env)
 
     # put a checkpoint here you want to start from
-    file_name = ""
+    file_name = sys.stdin.read().strip() #"runs/poke_26214400_steps"
 
     train_steps_batch = ep_length // 64
     
