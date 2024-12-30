@@ -48,7 +48,7 @@ You can pause the AI's input during the game by editing `agent_enabled.txt`
 
 Note: the Pokemon.gb file MUST be in the main directory and your current directory MUST be the `baselines/` directory in order for this to work.
 
-### Visual Studio Code (Tested on Mac)
+### IDEs (ex. VSCode, Pycharm, etc.)
 
 1. Copy your legally obtained Pokemon Red ROM into the base directory. You can find this using google, it should be 1MB. Rename it to `PokemonRed.gb` if it is not already. The sha1 sum should be `ea9bcae617fdf159b045185467ae58b2e4a48b9a`, which you can verify by running `shasum PokemonRed.gb`. 
 
@@ -62,33 +62,18 @@ Type y, then Enter/Return
 4. Switch to python 3.10
 Press `Shift+Command+P`, Click `Python: Select Interpreter`, and select `Python 3.10`.
 
-5. Install skimmage:
-```pip3 install scikit-image```
-
-6.  Install torch
-```conda install pytorch::pytorch torchvision torchaudio -c pytorch```
-
-7. Install Stable Baselines3:
-```pip3 install setuptools==75.1.0 pip==24.3.1```
-Then:
-```pip install wheel==0.45.1```
-Then:
-```pip install 'stable-baselines3[extra]'```
-
-8. Install wandb
-```pip install wandb```
-
-9. Change path:
+5. Change path:
 ```cd v2```
 
-10. Install requirements:
-```pip install -r VSCode_requirements.txt```
-Note: You can copy the path by right-clicking on the file
+6. Install requirements:
+```pip install -r IDE_requirements.txt```
+You may have to use pip3
 
-11. Train the program!
+7. Train the program!
 ```python baseline_fast_v2.py```
+You may have to use python3
 
-12. Run the program!
+8. Run the program!
 ```python run_pretrained_interactive.py```
 
 ## Training the Model 🏋️ 
