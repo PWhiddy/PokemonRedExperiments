@@ -1,4 +1,5 @@
 import sys
+import select
 from os.path import exists
 from pathlib import Path
 from red_gym_env_v2 import RedGymEnv
@@ -75,7 +76,11 @@ if __name__ == "__main__":
     #env_checker.check_env(env)
 
     # put a checkpoint here you want to start from
-    file_name = sys.stdin.read().strip() #"runs/poke_26214400_steps"
+    
+    if select.select([sys.stdin], [], [], 0.1)[0]:  
+        file_name = sys.stdin.read().strip()  #"runs/poke_26214400_steps"
+    else:
+        file_name = ""
 
     train_steps_batch = ep_length // 64
     
