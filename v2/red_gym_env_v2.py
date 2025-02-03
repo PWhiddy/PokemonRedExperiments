@@ -202,7 +202,6 @@ class RedGymEnv(Env):
 
         if self.save_video and self.step_count == 0:
             self.start_video()
-
         self.run_action_on_emulator(action)
         self.append_agent_stats(action)
 

@@ -10,6 +10,13 @@ from stable_baselines3.common import env_checker
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.callbacks import CheckpointCallback
+import numpy as np
+import matplotlib.pyplot as plt
+
+"""
+Our dataset
+"""
+X = []
 
 def make_env(rank, env_conf, seed=0):
     """
@@ -71,7 +78,16 @@ if __name__ == '__main__':
         
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
+    counter = 0
+    x = np.zeros((3, 73, 80))
+    
     while True:
+        if counter > 2:
+            counter = 0
+            # Combine the last 3 frames
+            combined = np.hstack((x[0], x[1], x[2]))
+            X.append(combined)
+            
         action = 7 # pass action
         try:
             with open("agent_enabled.txt", "r") as f:
@@ -81,7 +97,17 @@ if __name__ == '__main__':
         if agent_enabled:
             action, _states = model.predict(obs, deterministic=False)
         obs, rewards, terminated, truncated, info = env.step(action)
-        env.render()
+        game_pixels = env.render()
+        # Combine game_pxiels with action
+        action = np.full((1, 80), action)
+        pixel_image = game_pixels.squeeze()
+        action_image = action.squeeze()
+        combined = np.vstack((pixel_image, action_image))
+        x[counter] = combined
+        
+        counter += 1
+        
+        
         if truncated:
             break
     env.close()
