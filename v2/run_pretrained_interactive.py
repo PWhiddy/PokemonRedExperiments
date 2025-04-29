@@ -82,6 +82,8 @@ if __name__ == '__main__':
             obs, rewards, terminated, truncated, info = env.step(action)
         else:
             env.pyboy.tick(1, True)
+            obs = env._get_obs()
+            truncated = env.step_count >= env.max_steps - 1
         env.render()
         if truncated:
             break
