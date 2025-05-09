@@ -72,7 +72,6 @@ if __name__ == '__main__':
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
     while True:
-        action = 7 # pass action
         try:
             with open("agent_enabled.txt", "r") as f:
                 agent_enabled = f.readlines()[0].startswith("yes")
@@ -80,7 +79,11 @@ if __name__ == '__main__':
             agent_enabled = False
         if agent_enabled:
             action, _states = model.predict(obs, deterministic=False)
-        obs, rewards, terminated, truncated, info = env.step(action)
+            obs, rewards, terminated, truncated, info = env.step(action)
+        else:
+            env.pyboy.tick(1, True)
+            obs = env._get_obs()
+            truncated = env.step_count >= env.max_steps - 1
         env.render()
         if truncated:
             break
