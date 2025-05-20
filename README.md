@@ -49,34 +49,6 @@ You can pause the AI's input during the game by editing `agent_enabled.txt`
 
 Note: the Pokemon.gb file MUST be in the main directory and your current directory MUST be the `baselines/` directory in order for this to work.
 
-### IDEs (ex. VSCode, Pycharm, etc.)
-
-1. Copy your legally obtained Pokemon Red ROM into the base directory. You can find this using google, it should be 1MB. Rename it to `PokemonRed.gb` if it is not already. The sha1 sum should be `ea9bcae617fdf159b045185467ae58b2e4a48b9a`, which you can verify by running `shasum PokemonRed.gb`. 
-
-2. Create conda environment:
-```conda create -n (Name here) python=3.10```
-Type y, then Enter/Return
-
-3. Activate conda environment:
-```conda activate (Name here)```
-
-4. Switch to python 3.10
-Press `Shift+Command+P`, Click `Python: Select Interpreter`, and select `Python 3.10`.
-
-5. Change path:
-```cd v2```
-
-6. Install requirements:
-```pip install -r IDE_requirements.txt```
-You may have to use pip3
-
-7. Train the program!
-```python baseline_fast_v2.py```
-You may have to use python3
-
-8. Run the program!
-```python run_pretrained_interactive.py```
-
 ## Training the Model 🏋️ 
 
 <img src="/assets/grid.png?raw=true" height="156">
