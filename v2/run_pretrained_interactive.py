@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     env_config = {
                 'headless': False, 'save_final_state': True, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../init.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'sim_frame_dist': 2_000_000.0, 'extra_buttons': False
             }
@@ -72,7 +72,6 @@ if __name__ == '__main__':
     #keyboard.on_press_key("M", toggle_agent)
     obs, info = env.reset()
     while True:
-        action = 7 # pass action
         try:
             with open("agent_enabled.txt", "r") as f:
                 agent_enabled = f.readlines()[0].startswith("yes")
@@ -80,7 +79,11 @@ if __name__ == '__main__':
             agent_enabled = False
         if agent_enabled:
             action, _states = model.predict(obs, deterministic=False)
-        obs, rewards, terminated, truncated, info = env.step(action)
+            obs, rewards, terminated, truncated, info = env.step(action)
+        else:
+            env.pyboy.tick(1, True)
+            obs = env._get_obs()
+            truncated = env.step_count >= env.max_steps - 1
         env.render()
         if truncated:
             break

@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     env_config = {
                 'headless': True, 'save_final_state': False, 'early_stop': False,
-                'action_freq': 24, 'init_state': '../has_pokedex_nballs.state', 'max_steps': ep_length, 
+                'action_freq': 24, 'init_state': '../init.state', 'max_steps': ep_length, 
                 'print_rewards': True, 'save_video': False, 'fast_video': True, 'session_path': sess_path,
                 'gb_path': '../PokemonRed.gb', 'debug': False, 'reward_scale': 0.5, 'explore_weight': 0.25
             }
@@ -74,8 +74,11 @@ if __name__ == "__main__":
 
     #env_checker.check_env(env)
 
-    # put a checkpoint here you want to start from
-    file_name = sys.stdin.read().strip() #"runs/poke_26214400_steps"
+    # put a checkpoint here you want to start from    
+    if sys.stdin.isatty():
+        file_name = ""
+    else:
+        file_name = sys.stdin.read().strip() #"runs/poke_26214400_steps"
 
     train_steps_batch = ep_length // 64
     
