@@ -39,7 +39,8 @@ V2 is now recommended over the original version. You may follow all steps below 
  ```cd baselines```  
 3. Install dependencies:  
 ```pip install -r requirements.txt```  
-It may be necessary in some cases to separately install the SDL libraries.  
+It may be necessary in some cases to separately install the SDL libraries.
+MacOS users will need to use ```macos_requirements.txt``` instead of ```requirements.txt```
 4. Run:  
 ```python run_pretrained_interactive.py```
   
