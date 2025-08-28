@@ -96,6 +96,24 @@ To enable wandb integration, change `use_wandb_logging` in the training script t
 ## Static Visualization 🐜
 Map visualization code can be found in `visualization/` directory.
 
+## Follow up work  
+ 
+Check out our follow up projects & papers!  
+  
+### [Pokemon Red via Reinforcement Learning 🔗](https://arxiv.org/abs/2502.19920)
+```  
+  @misc{pleines2025pokemon,
+    title={Pokemon Red via Reinforcement Learning},
+    author={Marco Pleines and Daniel Addis and David Rubinstein and Frank Zimmer and Mike Preuss and Peter Whidden},
+    year={2025},
+    eprint={2502.19920},
+    archivePrefix={arXiv},
+    primaryClass={cs.LG}
+  }
+```
+### [Pokemon RL Edition 🔗](https://drubinstein.github.io/pokerl/)
+### [PokeGym 🔗](https://github.com/PufferAI/pokegym)
+
 ## Supporting Libraries
 Check out these awesome projects!
 ### [PyBoy](https://github.com/Baekalfen/PyBoy)
