@@ -12,3 +12,12 @@ session_*
 PokemonRed.gb.state
 venv*
 .python-version
+
+# curriculum extension training artifacts (models, logs, saved emulator states)
+runs_curriculum*
+curriculum_states/
+*.state
+!init.state
+!has_pokedex.state
+!has_pokedex_nballs.state
+!fast_text_start.state

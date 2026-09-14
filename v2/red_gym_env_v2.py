@@ -113,6 +113,12 @@ class RedGymEnv(Env):
             #debugging=False,
             #disable_input=False,
             window=head,
+            # Training never uses audio. With the emulator running far faster than
+            # real time (especially headless), the emulated APU fills its sample
+            # buffer faster than anything drains it -> repeated
+            # "pyboy.core.sound CRITICAL Buffer overrun!" spam. Disabling sound
+            # emulation removes the spam and is slightly faster.
+            sound_emulated=False,
         )
 
         #self.screen = self.pyboy.botsupport_manager().screen()

@@ -1,0 +1,9 @@
+# Extra dependencies for the curriculum/hierarchical-RL extension.
+# The base v2 stack (see requirements.txt) already covers pyboy, stable-baselines3,
+# torch, gymnasium, numpy, etc. This only adds the YAML config loader.
+#
+#   pip install -r requirements.txt
+#   pip install -r requirements-curriculum.txt
+#
+# (JSON configs work without PyYAML; YAML configs require it.)
+PyYAML>=6.0

@@ -1,0 +1,138 @@
+# Curriculum RL configuration for CurriculumRedGymEnv + train_full_game_curriculum.py
+#
+# Loaded by curriculum.config.CurriculumConfig.from_file(). Any key omitted falls
+# back to the dataclass default. CLI flags in the training script override values
+# here (e.g. --num-envs, --mode, --speed, --target-milestone).
+#
+# YAML loading needs PyYAML (pip install pyyaml). A .json equivalent also works.
+
+# --- emulator / env ---
+gb_path: "../PokemonRed.gb"      # you must legally provide this ROM (not included)
+init_state: "../init.state"      # fresh-game start state shipped with the repo
+headless: true                   # true = no window (training); false = SDL2 window
+action_freq: 24                  # emulator ticks per agent action (1 overworld step)
+max_steps: 65536                 # 2048 * 32 step budget per episode (longer lives = deeper reach)
+save_video: false
+fast_video: true
+save_final_state: false
+print_rewards: false
+session_path: "runs_curriculum"
+emulation_speed: 0               # 0 = unlimited; used only when headless=false
+
+# --- observation ---
+use_structured_obs: true         # primary RAM/event structured vector
+use_screens: true                # keep pixel frame-stack as auxiliary input
+history_len: 8                   # recent action / map history length
+
+# --- curriculum / staging ---
+state_store_root: "curriculum_states"
+target_milestone: null           # set per-stage (or via --target-milestone)
+start_state_strategy: "best"     # random | latest | best
+save_success_states: true
+success_state_min_reward: 0.0
+end_on_target: false             # end episode the moment the target milestone is hit
+end_on_blackout: false
+
+# --- Go-Explore warm-restart (the key lever for getting past far-from-start walls
+#     like the SS Anne even in a non-staged run). 0.5 => half of episodes restart
+#     from a saved frontier success-state; falls back to init.state until states
+#     exist, so it is safe from a cold start. ---
+start_state_prob: 0.6            # 60% of episodes resume from a saved frontier state
+frontier_window: 4               # sample among the furthest N milestones that have states
+
+# --- efficiency: truncate episodes stuck with no progress this many steps (0 = off).
+#     Recycles wasted rollout; pairs with start_state_prob to re-seed near the frontier.
+#     Raised so a single life has room to escape a building / cross a long dungeon
+#     before being cut (real "progress" = new map/event/badge/level, not just new tiles). ---
+max_steps_without_progress: 12000
+
+# --- high-level planner (the "think, then learn" layer) -----------------------
+# When stuck/looping or on a cadence, a planner proposes the next sub-goal (target
+# map + suggested skill) and the env adds potential-based shaping toward it. The
+# Ollama planner runs OFF-THREAD (async) and is cached by (frontier milestone, map),
+# so the ~10s local-LLM latency never blocks the emulator -- the rule-based planner
+# serves an instant answer until the LLM's reply is cached.
+use_planner: false                 # master switch (true => planning + subgoal shaping)
+planner_kind: "ollama"             # none | rule | ollama
+planner_model: "nemotron-mini"     # local Ollama model (nemotron-mini ~10s warm here)
+planner_host: "http://localhost:11434"
+planner_timeout: 30.0              # seconds before a call falls back to rules
+replan_interval: 512               # routine replans every N steps
+replan_on_stuck: true              # also replan when stuck/loop signals spike
+planner_verbose: true              # print a CLI panel whenever the LLM actually decides
+subgoal_shaping_weight: 1.0        # scale of potential-based subgoal shaping
+subgoal_reach_bonus: 8.0           # one-time bonus for reaching the subgoal's target map
+
+# --- advice controller: make the POLICY follow the planner's decisions --------
+# The planner decides a skill (navigation/battle/healing/grinding/story or a field
+# move cut/surf/strength); this rewards the policy each step its behaviour matches
+# that advised skill, so over training the model learns to OBEY the planner. For the
+# unlearnable field moves it also fires the deterministic macro once the policy has
+# committed (kept bumping the advised obstacle) -- e.g. it executes Cut at the SS-Anne
+# tree. Requires use_planner (advice_require_planner: true) unless you want the Cut
+# rescue heuristic without a planner.
+use_advice: false                  # master switch (true => advice-following reward + macros)
+advice_w_align: 0.02               # per-step nudge for acting on the advised skill
+advice_trigger_bumps: 4            # bumps at an advised obstacle before the macro fires
+advice_success_bonus: 5.0          # one-time bonus when an executed field move opens progress
+advice_require_planner: true       # only act on advice when a planner is active
+
+# --- scripted helpers ---
+use_scripted_helpers: false
+auto_advance_dialogue: false
+dialogue_taps: 8
+# Deterministic Cut assist for the post-SS-Anne tree (EXPERIMENTAL: validate the
+# party field-move menu cursor against your ROM before trusting it). When on, the
+# agent auto-uses Cut after repeatedly bumping a wall while Cut is usable.
+auto_use_cut: false
+cut_trigger_bumps: 6
+
+# --- reward weights (curriculum.rewards.RewardConfig) ---
+reward:
+  # positive
+  w_milestone: 1.0     # multiplies each milestone's own reward value
+  w_new_map: 5.0
+  w_new_coord: 0.02
+  w_event: 4.0
+  w_badge: 25.0
+  w_level: 1.0
+  w_pokedex: 1.0
+  w_heal: 3.0
+  # penalties (positive magnitudes; applied negatively)
+  p_blackout: 25.0
+  p_stuck: 0.05
+  p_wall_bump: 0.02
+  p_menu_spam: 0.02
+  p_inactivity: 0.01
+  p_heal_farm: 0.5
+  p_loop: 0.1
+  # thresholds
+  stuck_visit_threshold: 400
+  inactivity_patience: 1500
+  loop_window: 200
+  loop_unique_min: 12
+  menu_window: 50
+  menu_spam_max: 12
+  heal_farm_patience: 2
+  level_explore_thresh: 22
+  level_scale_factor: 4.0
+  reward_scale: 1.0
+  # --- intrinsic motivation (non-saturating exploration; fixes the dry-up) ---
+  # count => pure-numpy pseudo-count bonus coef/sqrt(N(state)); decays as a region
+  # is mastered and revives at the frontier. "rnd" (needs a GPU) or "none" also valid.
+  intrinsic_kind: "count"
+  w_intrinsic: 0.3             # bonus at first visit of a state bucket
+  intrinsic_power: 0.5         # 0.5 => 1/sqrt(N); raise toward 1.0 to calm sooner
+  intrinsic_xy_bucket: 2       # tile coarseness of the novelty hash
+  intrinsic_event_bucket: 4    # story-flag chunk that refreshes novelty
+  # --- adaptive reward controller (homeostatic; stops reward hacking) ---
+  # Throttles any FARMABLE term (explore/level/heal/pokedex/intrinsic) that hogs
+  # > share_budget of recent reward while REAL progress (milestone/badge/event/map)
+  # has stalled for stall_patience steps. Objective terms are never throttled.
+  adaptive_enabled: true
+  adaptive_ema: 0.999
+  adaptive_share_budget: 0.5
+  adaptive_stall_patience: 1200
+  adaptive_decay_rate: 0.999
+  adaptive_relax_rate: 1.0005
+  adaptive_floor: 0.05

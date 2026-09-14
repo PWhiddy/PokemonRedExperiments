@@ -1,3 +1,4 @@
+import re
 import sys
 from os.path import exists
 from pathlib import Path
@@ -74,15 +75,29 @@ if __name__ == "__main__":
 
     #env_checker.check_env(env)
 
-    # put a checkpoint here you want to start from    
-    if sys.stdin.isatty():
-        file_name = ""
+    # Resume support: auto-pick the newest checkpoint in the session dir so an
+    # interrupted run continues from where it left off. Pass an explicit path on
+    # stdin to override, or set file_name = "" to force a fresh start.
+    def find_latest_checkpoint(path: Path) -> str:
+        steps_re = re.compile(r"_(\d+)_steps\.zip$")
+        best_steps, best = -1, ""
+        for p in path.glob("poke_*_steps.zip"):
+            m = steps_re.search(p.name)
+            if m and int(m.group(1)) > best_steps:
+                best_steps, best = int(m.group(1)), str(p)[:-4]
+        return best
+
+    if not sys.stdin.isatty():
+        file_name = sys.stdin.read().strip()
     else:
-        file_name = sys.stdin.read().strip() #"runs/poke_26214400_steps"
+        file_name = find_latest_checkpoint(sess_path)
+        if file_name:
+            print(f"\nauto-resuming from latest checkpoint: {file_name}.zip")
 
     train_steps_batch = ep_length // 64
     
-    if exists(file_name + ".zip"):
+    loaded = bool(file_name) and exists(file_name + ".zip")
+    if loaded:
         print("\nloading checkpoint")
         model = PPO.load(file_name, env=env)
         model.n_steps = train_steps_batch
@@ -92,10 +107,13 @@ if __name__ == "__main__":
         model.rollout_buffer.reset()
     else:
         model = PPO("MultiInputPolicy", env, verbose=1, n_steps=train_steps_batch, batch_size=512, n_epochs=1, gamma=0.997, ent_coef=0.01, tensorboard_log=sess_path)
-    
+
     print(model.policy)
 
-    model.learn(total_timesteps=(ep_length)*num_cpu*10000, callback=CallbackList(callbacks), tb_log_name="poke_ppo")
+    # reset_num_timesteps=False on resume keeps the global step counter (and thus the
+    # checkpoint numbering) continuous so progress is not lost across restarts.
+    model.learn(total_timesteps=(ep_length)*num_cpu*10000, callback=CallbackList(callbacks),
+                tb_log_name="poke_ppo", reset_num_timesteps=not loaded)
 
     if use_wandb_logging:
         run.finish()

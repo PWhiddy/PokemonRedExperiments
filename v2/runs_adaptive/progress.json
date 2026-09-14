@@ -1,0 +1,20 @@
+{
+  "updated_timestep": 405264,
+  "furthest_index": 4,
+  "furthest_name": "Get Pokedex",
+  "furthest_fraction": 0.15151515151515152,
+  "best_badges": 0,
+  "best_levels": 5,
+  "announced": [
+    "get_pokedex",
+    "get_starter"
+  ],
+  "first_step": {
+    "get_pokedex": 222,
+    "get_starter": 16092
+  },
+  "reach_counts": {
+    "get_pokedex": 20,
+    "get_starter": 12
+  }
+}
