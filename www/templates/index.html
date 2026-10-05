@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Uploads</title>
+    <!-- <script src="https://cdn.tailwindcss.com"></script> -->
+</head>
+<body>
+    <div class="container mx-auto p-4">
+    <h1 class="text-2xl mb-4">AI Plays Pokemon</h1>
+<!-- 
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="file">
+            <input type="number" name="steps" placeholder="Steps">
+            <button type="submit" class="bg-blue-500 text-white p-2 rounded">Upload</button>
+        </form>
+-->
+	<a href="/highest_steps" class="bg-purple-500 text-white p-2 rounded mb-4 inline-block">Download File with Highest Steps</a>
+
+        <table class="table-auto mt-4">
+            <thead>
+                <tr>
+                    <th>Steps</th>
+                    <th>Filename</th>
+                    <th>Timestamp</th>
+                    <th>Download</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for file in files %}
+                    <tr>
+                        <td>{{ file.steps }}</td>
+                        <td>{{ file.filename }}</td>
+                        <td>{{ file.timestamp }}</td>
+                        <td><a href="{{ file.filepath }}" download class="bg-green-500 text-white p-2 rounded">Download</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+
