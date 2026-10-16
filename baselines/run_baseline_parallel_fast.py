@@ -48,7 +48,7 @@ if __name__ == '__main__':
     checkpoint_callback = CheckpointCallback(save_freq=ep_length, save_path=sess_path,
                                      name_prefix='poke')
     
-    callbacks = [checkpoint_callback, TensorboardCallback()]
+    callbacks = [checkpoint_callback, TensorboardCallback(log_dir=sess_path)]
 
     if use_wandb_logging:
         import wandb
